@@ -4,6 +4,6 @@ namespace TestSignal
 	{
 		TestSignalSubscriptionItem[] GetSubscriptionItems();
 
-		double GetSampleTime();
+		double SampleTime { get; }
 	}
 }

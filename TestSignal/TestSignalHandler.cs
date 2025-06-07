@@ -36,12 +36,6 @@ namespace TestSignal
         public int MaxLogTime { get; set; }
         public TrigHandler TrigHandler { get; set; }
         bool ITestDataSubscriptionClient.Connected => ConnectionState == ConnectionState.Connected;
-        //{
-        //	get
-        //	{
-        //		return ConnectionState == ConnectionState.Connected;
-        //	}
-        //}
         bool ITestDataSubscriptionClient.Subscribing => _subscribing;
 
         public event EventHandler<PropertyChangedEventArgs<ConnectionState>> ConnectionStateChanged;
@@ -100,7 +94,6 @@ namespace TestSignal
                 foreach (var value in _dataLogs.Values)
                 {
                     value.AntiAliasFilter = null;
-                    value.LoggedData = null;
                     value.LoggedData = null;
                 }
                 _dataLogs = null;
@@ -644,7 +637,7 @@ namespace TestSignal
 
         void ITestDataSubscriptionClient.AddSubscriber(ITestSignalSubscriber subscriber)
         {
-            double sampleTime = subscriber.GetSampleTime();
+            double sampleTime = subscriber.SampleTime;
             TestSignalSubscriptionItem[] subscriptionItems = subscriber.GetSubscriptionItems();
             foreach (TestSignalSubscriptionItem testSignalSubscriptionItem in subscriptionItems)
             {

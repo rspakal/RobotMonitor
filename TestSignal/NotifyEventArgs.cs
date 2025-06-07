@@ -4,18 +4,7 @@ using System;
 
 public class NotifyEventArgs<T> : EventArgs
 {
-	private readonly T value;
-
-	public T Value
-	{
-		get
-		{
-			return value;
-		}
-	}
-
-	public NotifyEventArgs(T value)
-	{
-		this.value = value;
-	}
+	private readonly T _value;
+	public T Value => _value;
+	public NotifyEventArgs(T value) => _value = value;
 }

@@ -260,9 +260,9 @@ namespace TestSignal
 
 		private const int StoMS = 1000;
 		private const int LOGSRV_MAX_BLOCK_SIZE = 192;
-		private readonly int[] _sampleFactors = new int[10] { 1, 2, 4, 8, 16, 32, 48, 64, 96, 192 };
-		private TestSignalHandler testSignalHandler;
-		private List<TestSignalProvider> testSignalProviders = new List<TestSignalProvider>();
+		private readonly int[] _sampleFactors = { 1, 2, 4, 8, 16, 32, 48, 64, 96, 192 };
+		public TestSignalHandler testSignalHandler;
+		public List<TestSignalProvider> testSignalProviders = new List<TestSignalProvider>();
 		public string Name => "Socket";
 		public double SampleTime => testSignalHandler.SampleTime;
 		public double SampleTimeBase => Signal.AxcSampleTime;

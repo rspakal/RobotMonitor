@@ -151,7 +151,7 @@ namespace TestSignal
 			Write(reverseByteOrderWriter.GetBytes());
 		}
 
-		private void Write(byte[] data)
+		public void Write(byte[] data)
 		{
 			if (_networkStream == null || data == null)
 			{
@@ -202,7 +202,7 @@ namespace TestSignal
 						{
 							//Edited
 							//num4 = Array.FindIndex(array, 0, num2 - offset, (byte b) => b != 0);
-							index = Array.FindIndex(array, 0, bytesRead, (byte b) => b != 0);
+							index = Array.FindIndex(array, 0, bytesRead, b => b != 0);
 							//------
 							while (index >= 0 && !flag)
 							{

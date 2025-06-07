@@ -1,79 +1,53 @@
 using TestSignalLogger;
 namespace TestSignal
 {
-	public class TestSignalProvider : IMeasurementsProvider, IDisposable, ITestSignalSubscriber
-	{
-		private const int StoMS = 1000;
+    public class TestSignalProvider : IMeasurementsProvider, IDisposable, ITestSignalSubscriber
+    {
+        private const int StoMS = 1000;
+        private readonly int _signalNumber;
+        private readonly int _axisNo;
+        private readonly double _sampleTime;
+        private readonly string mechUnitName;
+        private readonly bool _antiAliasFiltering;
+        private readonly Trig trig;
 
-		private readonly int signalNumber;
+        public double SampleTime => _sampleTime;
 
-		private readonly int axisNo;
+        public bool RequiresCommonHandler => true;
+        public string HandlerKey => "TestSignalHandler";
+        private TestSignalProvider()
+        {
+        }
 
-		private readonly double sampleTime;
+        public TestSignalProvider(string mechUnitName, int signalNumber, int axisNo, double sampleTime, bool antiAliasFiltering, Trig trig)
+        {
+            this.mechUnitName = mechUnitName;
+            _signalNumber = signalNumber;
+            _axisNo = axisNo;
+            _sampleTime = sampleTime;
+            _antiAliasFiltering = antiAliasFiltering;
+            if (_antiAliasFiltering)
+            {
+                _sampleTime = Signal.AxcSampleTime * 1000.0;
+            }
+            this.trig = trig;
+        }
 
-		private readonly string mechUnitName;
+        public void Start()
+        {
+        }
 
-		private readonly bool antiAliasFiltering;
+        public void Stop()
+        {
+        }
 
-		private readonly Trig trig;
+        public void Dispose()
+        {
+        }
 
-		public bool RequiresCommonHandler
-		{
-			get
-			{
-				return true;
-			}
-		}
-
-		public string HandlerKey
-		{
-			get
-			{
-				return "TestSignalHandler";
-			}
-		}
-
-		private TestSignalProvider()
-		{
-		}
-
-		public TestSignalProvider(string mechUnitName, int signalNumber, int axisNo, double sampleTime, bool antiAliasFiltering, Trig trig)
-		{
-			this.mechUnitName = mechUnitName;
-			this.signalNumber = signalNumber;
-			this.axisNo = axisNo;
-			this.sampleTime = sampleTime;
-			this.antiAliasFiltering = antiAliasFiltering;
-			if (this.antiAliasFiltering)
-			{
-				this.sampleTime = Signal.AxcSampleTime * 1000.0;
-			}
-			this.trig = trig;
-		}
-
-		public void Start()
-		{
-		}
-
-		public void Stop()
-		{
-		}
-
-		public void Dispose()
-		{
-		}
-
-		public TestSignalSubscriptionItem[] GetSubscriptionItems()
-		{
-			return new TestSignalSubscriptionItem[1]
-			{
-			new TestSignalSubscriptionItem(signalNumber, mechUnitName, axisNo, trig)
-			};
-		}
-
-		public double GetSampleTime()
-		{
-			return sampleTime;
-		}
-	}
+        public TestSignalSubscriptionItem[] GetSubscriptionItems()
+        {
+            return [new TestSignalSubscriptionItem(_signalNumber, mechUnitName, _axisNo, trig)];
+        }
+    }
 }

@@ -11,21 +11,8 @@ namespace TestSignalLogger
 		private readonly List<double> x;
 		private readonly List<double> y;
 
-		public bool SampleFinished
-		{
-			get
-			{
-				return sampleFactor == sampleCounter;
-			}
-		}
-
-		public double Value
-		{
-			get
-			{
-				return y[y.Count - 1];
-			}
-		}
+		public bool SampleFinished => sampleFactor == sampleCounter;
+		public double Value => y[y.Count - 1];
 
 		public Filter(int sampleFactor, double[] a, double[] b)
 		{
