@@ -1,27 +1,22 @@
 using TestSignalLogger;
 namespace TestSignal
 {
-    public class TestSignalProvider : IMeasurementsProvider, IDisposable, ITestSignalSubscriber
+    public class TestSignalProvider : IMeasurementsProvider, IDisposable, IDataSubscriber
     {
         private const int StoMS = 1000;
         private readonly int _signalNumber;
         private readonly int _axisNo;
         private readonly double _sampleTime;
-        private readonly string mechUnitName;
+        private readonly string _mechUnitName;
         private readonly bool _antiAliasFiltering;
         private readonly Trig trig;
 
         public double SampleTime => _sampleTime;
-
         public bool RequiresCommonHandler => true;
         public string HandlerKey => "TestSignalHandler";
-        private TestSignalProvider()
-        {
-        }
-
         public TestSignalProvider(string mechUnitName, int signalNumber, int axisNo, double sampleTime, bool antiAliasFiltering, Trig trig)
         {
-            this.mechUnitName = mechUnitName;
+            _mechUnitName = mechUnitName;
             _signalNumber = signalNumber;
             _axisNo = axisNo;
             _sampleTime = sampleTime;
@@ -45,9 +40,9 @@ namespace TestSignal
         {
         }
 
-        public TestSignalSubscriptionItem[] GetSubscriptionItems()
+        public SubscriptionData[] GetSubscriptionItems()
         {
-            return [new TestSignalSubscriptionItem(_signalNumber, mechUnitName, _axisNo, trig)];
+            return [new SubscriptionData(_signalNumber, _mechUnitName, _axisNo, trig)];
         }
     }
 }

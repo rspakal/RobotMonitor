@@ -1,37 +1,36 @@
 using System.Text;
 namespace TestSignal
 {
-	public class ReverseByteOrderWriter
+	public class WriteDataBuffer
 	{
-		private readonly MemoryStream ms;
-
-		public ReverseByteOrderWriter()
+		private readonly MemoryStream _memoryStream;
+		public WriteDataBuffer()
 		{
-			ms = new MemoryStream(256);
+			_memoryStream = new MemoryStream(256);
 		}
 
-		public byte[] GetBytes()
+		public byte[] GetData()
 		{
-			byte[] array = new byte[ms.Length];
-			Array.ConstrainedCopy(ms.GetBuffer(), 0, array, 0, (int)ms.Length);
+			byte[] array = new byte[_memoryStream.Length];
+			Array.ConstrainedCopy(_memoryStream.GetBuffer(), 0, array, 0, (int)_memoryStream.Length);
 			return array;
 		}
 
-		public void Write(float value)
+		public void AddData(float value)
 		{
 			byte[] bytes = BitConverter.GetBytes(value);
 			Array.Reverse(bytes);
-			ms.Write(bytes, 0, bytes.Length);
+			_memoryStream.Write(bytes, 0, bytes.Length);
 		}
 
-		public void Write(int value)
+		public void AddData(int value)
 		{
 			byte[] bytes = BitConverter.GetBytes(value);
 			Array.Reverse(bytes);
-			ms.Write(bytes, 0, bytes.Length);
+			_memoryStream.Write(bytes, 0, bytes.Length);
 		}
 
-		public void Write(string value, int size)
+		public void AddData(string value, int size)
 		{
 			byte[] array = new byte[size];
 			byte[] bytes = Encoding.ASCII.GetBytes(value);
@@ -39,7 +38,7 @@ namespace TestSignal
 			{
 				array[i] = bytes[i];
 			}
-			ms.Write(array, 0, size);
+			_memoryStream.Write(array, 0, size);
 		}
 	}
 }

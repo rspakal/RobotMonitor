@@ -1,9 +1,8 @@
 namespace TestSignal
 {
-	public interface ITestSignalSubscriber
+	public interface IDataSubscriber
 	{
-		TestSignalSubscriptionItem[] GetSubscriptionItems();
-
+		SubscriptionData[] GetSubscriptionItems();
 		double SampleTime { get; }
 	}
 }

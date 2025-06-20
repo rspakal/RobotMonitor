@@ -8,7 +8,7 @@ namespace TestSignal
         private const double MStoS = 0.001;
         private const int LOGSRVPORT = 4011;
         private readonly TimeSpan CONNECTION_TIMEOUT = new TimeSpan(0, 0, 6);
-        private const int COMMAND_TIMEOUT_MS = 500;
+        private const int COMMAND_TIMEOUT = 500;
         private const int RECEIVE_BUFFER_SIZE = 32768;
         private const int StoMS = 1000;
         private readonly IPAddress _ipAddress;
@@ -167,7 +167,7 @@ namespace TestSignal
         {
             _commandExecuted.Reset();
             WriteRemoveAllSignals();
-            if (!_commandExecuted.WaitOne(500, true))
+            if (!_commandExecuted.WaitOne(COMMAND_TIMEOUT, true))
             {
                 throw new TimeoutException("RemoveAllSignals");
             }
@@ -215,7 +215,7 @@ namespace TestSignal
                     array[num++] = key;
                 }
                 WriteStartStopLog(cmd, array);
-                if (!_commandExecuted.WaitOne(500, true))
+                if (!_commandExecuted.WaitOne(COMMAND_TIMEOUT, true))
                 {
                     Log.Write(LogLevel.Debug, "TestSignalHandler::StartStopLog", "Timeout!");
                     throw new TimeoutException("StartStopLog");
@@ -284,18 +284,19 @@ namespace TestSignal
             }
         }
 
-        protected override void OnLogData(int channel, int count, ReverseOrderByteBuffer robb)
+        protected override void OnLogData(int channel, int count, ReadDataBuffer dataBuffer)
         {
             if (!_definedSignals.ContainsKey(channel))
             {
                 return;
             }
-            List<double> list = new List<double>(count);
+
+            List<double> list = new(count);
             if (_definedSignals[channel].Format == LogSrvSignalDefinition.LogSvrValueFormat.Float)
             {
                 for (int i = 0; i < count; i++)
                 {
-                    list.Add(robb.ReadSingle());
+                    list.Add(dataBuffer.ReadFloat());
                 }
             }
             else if (_definedSignals[channel].Format == LogSrvSignalDefinition.LogSvrValueFormat.String || _definedSignals[channel].Format == LogSrvSignalDefinition.LogSvrValueFormat.Undefined)
@@ -306,9 +307,10 @@ namespace TestSignal
             {
                 for (int j = 0; j < count; j++)
                 {
-                    list.Add(robb.ReadInt32());
+                    list.Add(dataBuffer.ReadInt());
                 }
             }
+
             ReceiveLogDataObject receiveLogDataObject = _dataLogs[channel];
             List<double> loggedData = receiveLogDataObject.LoggedData;
             LogSrvSignalDefinition logSrvSignalDefinition = _definedSignals[channel];
@@ -317,6 +319,7 @@ namespace TestSignal
             {
                 trig = _trigs[channel];
             }
+
             double sampleTime = logSrvSignalDefinition.SampleTime;
             int count2 = loggedData.Count;
             foreach (double item in list)
@@ -498,7 +501,7 @@ namespace TestSignal
                 _orderedSignals.Add(new Signal(mechUnitName, axisNumber, signalNumber));
                 _commandExecuted.Reset();
                 WriteDefineSignal(channel, signalNumber, mechUnitName, axisNumber, (float)sampleTime);
-                if (!_commandExecuted.WaitOne(500, true))
+                if (!_commandExecuted.WaitOne(COMMAND_TIMEOUT, true))
                 {
                     throw new TimeoutException("DefineSignal");
                 }
@@ -507,7 +510,7 @@ namespace TestSignal
 
         private bool CanAddChannel()
         {
-            return _definedSignals.Count < base.MaxNoSignals;
+            return _definedSignals.Count < MaxNoSignals;
         }
 
         private bool SignalDefined(int signalNumber, string mechUnitName, int axisNumber, double sampleTime)
@@ -524,7 +527,7 @@ namespace TestSignal
 
         private int FindChannel(int signalNumber, string mechUnitName, int axisNumber, double sampleTime)
         {
-            int num = base.MaxNoSignals - 1;
+            int num = MaxNoSignals - 1;
             foreach (LogSrvSignalDefinition value in _definedSignals.Values)
             {
                 if (value.SignalNo == signalNumber && value.MechName == mechUnitName && value.AxisNo == axisNumber && value.SampleTime == sampleTime)
@@ -635,21 +638,21 @@ namespace TestSignal
             }
         }
 
-        void ITestDataSubscriptionClient.AddSubscriber(ITestSignalSubscriber subscriber)
+        void ITestDataSubscriptionClient.AddSubscriber(IDataSubscriber subscriber)
         {
             double sampleTime = subscriber.SampleTime;
-            TestSignalSubscriptionItem[] subscriptionItems = subscriber.GetSubscriptionItems();
-            foreach (TestSignalSubscriptionItem testSignalSubscriptionItem in subscriptionItems)
+            SubscriptionData[] subscriptionData = subscriber.GetSubscriptionItems();
+            foreach (var data in subscriptionData)
             {
                 try
                 {
                     int channel;
-                    DefineSignal(testSignalSubscriptionItem.SignalNumber, testSignalSubscriptionItem.MechUnitName, testSignalSubscriptionItem.AxisNumber, sampleTime, out channel);
-                    _trigs.Add(channel, testSignalSubscriptionItem.Trig);
+                    DefineSignal(data.SignalNumber, data.MechUnitName, data.AxisNumber, sampleTime, out channel);
+                    _trigs.Add(channel, data.Trig);
                 }
                 catch (Exception ex)
                 {
-                    Log.Write(LogLevel.Error, string.Format("TestSignalHandler::AddSubscriber({0} {1} {2})", testSignalSubscriptionItem.SignalNumber, testSignalSubscriptionItem.MechUnitName, testSignalSubscriptionItem.AxisNumber), ex);
+                    Log.Write(LogLevel.Error, string.Format("TestSignalHandler::AddSubscriber({0} {1} {2})", data.SignalNumber, data.MechUnitName, data.AxisNumber), ex);
                 }
             }
         }
@@ -695,7 +698,7 @@ namespace TestSignal
                 {
                     for (int i = 0; i < providers.Length; i++)
                     {
-                        ITestSignalSubscriber testSignalSubscriber = providers[i] as ITestSignalSubscriber;
+                        IDataSubscriber testSignalSubscriber = providers[i] as IDataSubscriber;
                         if (testSignalSubscriber != null)
                         {
                             ((ITestDataSubscriptionClient)this).AddSubscriber(testSignalSubscriber);

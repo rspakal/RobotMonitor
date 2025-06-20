@@ -1,12 +1,11 @@
 using System.Text;
 namespace TestSignal
 {
-	public class ReverseOrderByteBuffer
+	public class ReadDataBuffer
 	{
-		private byte INT32_LENGHT = 4;
+		private const byte INT32_LENGHT = 4;
 		private readonly byte[] _data;
 		private int _currentIndex;
-
 		public int CurrentIndex
 		{
 			get => _currentIndex;
@@ -23,7 +22,7 @@ namespace TestSignal
 			}
 		}
 
-		public ReverseOrderByteBuffer(byte[] data, int start = 0)
+		public ReadDataBuffer(byte[] data, int start = 0)
 		{
 			_data = data;
 			_currentIndex = start;
@@ -34,7 +33,7 @@ namespace TestSignal
 			_currentIndex += count;
 		}
 
-		public int ReadInt32()
+		public int ReadInt()
 		{
 			Array.Reverse(_data, _currentIndex, INT32_LENGHT);
 			int result = BitConverter.ToInt32(_data, _currentIndex);
@@ -42,7 +41,7 @@ namespace TestSignal
 			return result;
 		}
 
-		public double ReadSingle()
+		public double ReadFloat()
 		{
 			Array.Reverse(_data, _currentIndex, INT32_LENGHT);
 			double result = BitConverter.ToSingle(_data, _currentIndex);

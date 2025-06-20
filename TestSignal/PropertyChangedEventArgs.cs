@@ -2,30 +2,14 @@ namespace TestSignal
 {
 	public class PropertyChangedEventArgs<T> : EventArgs
 	{
-		private readonly T newValue;
-
-		private readonly T oldValue;
-
-		public T NewValue
-		{
-			get
-			{
-				return newValue;
-			}
-		}
-
-		public T OldValue
-		{
-			get
-			{
-				return oldValue;
-			}
-		}
-
+		private readonly T _newValue;
+		private readonly T _oldValue;
+		public T NewValue => _newValue;
+		public T OldValue => _oldValue;
 		public PropertyChangedEventArgs(T oldValue, T newValue)
 		{
-			this.newValue = newValue;
-			this.oldValue = oldValue;
+			_newValue = newValue;
+			_oldValue = oldValue;
 		}
 	}
 }

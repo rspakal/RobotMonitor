@@ -262,7 +262,7 @@ namespace TestSignal
 		private const int LOGSRV_MAX_BLOCK_SIZE = 192;
 		private readonly int[] _sampleFactors = { 1, 2, 4, 8, 16, 32, 48, 64, 96, 192 };
 		public TestSignalHandler testSignalHandler;
-		public List<TestSignalProvider> testSignalProviders = new List<TestSignalProvider>();
+		public List<TestSignalProvider> testSignalProviders = new();
 		public string Name => "Socket";
 		public double SampleTime => testSignalHandler.SampleTime;
 		public double SampleTimeBase => Signal.AxcSampleTime;
@@ -273,20 +273,9 @@ namespace TestSignal
 
 		public event TrigEventHandler TrigActivated;
 
-		public void Connect(string ipAddress)
+		public void Connect(IPAddress ipAddress)
 		{
-			IPAddress ipAddress2 = new IPAddress(new byte[4] { 127, 0, 0, 1 });
-			string[] array = ipAddress.Split('.');
-			if (array.Length == 4)
-			{
-				byte[] array2 = new byte[4];
-				for (int i = 0; i < 4; i++)
-				{
-					array2[i] = byte.Parse(array[i]);
-				}
-				ipAddress2 = new IPAddress(array2);
-			}
-			testSignalHandler = new TestSignalHandler(ipAddress2);
+			testSignalHandler = new TestSignalHandler(ipAddress);
 		}
 
 		[AsyncStateMachine(typeof(_003CStartLog_003Ed__21))]
@@ -333,9 +322,9 @@ namespace TestSignal
 
 		public void OnLogDataReceived(object sender, EventArgs e)
 		{
-			if (this.LogDataReceived != null)
+			if (LogDataReceived != null)
 			{
-				this.LogDataReceived(sender, e);
+				LogDataReceived(sender, e);
 			}
 		}
 

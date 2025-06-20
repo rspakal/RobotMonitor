@@ -63,7 +63,7 @@ namespace TestSignal
 		{
 		}
 
-		protected virtual void OnLogData(int channel, int count, ReverseOrderByteBuffer robb)
+		protected virtual void OnLogData(int channel, int count, ReadDataBuffer robb)
 		{
 		}
 
@@ -86,34 +86,34 @@ namespace TestSignal
 
 		protected void WriteRemoveAllSignals()
 		{
-			ReverseByteOrderWriter reverseByteOrderWriter = new ReverseByteOrderWriter();
-			reverseByteOrderWriter.Write(5);
-			Write(reverseByteOrderWriter.GetBytes());
+			WriteDataBuffer dataBuffer = new();
+			dataBuffer.AddData(5);
+			Write(dataBuffer.GetData());
 		}
 
 		protected void WriteStartStopLog(LogSrvCommand cmd, int[] channels)
 		{
-			ReverseByteOrderWriter reverseByteOrderWriter = new ReverseByteOrderWriter();
-			reverseByteOrderWriter.Write((int)cmd);
-			WriteStartStopCmd(reverseByteOrderWriter, channels);
+			WriteDataBuffer dataBuffer = new();
+			dataBuffer.AddData((int)cmd);
+			WriteStartStopCmd(dataBuffer, channels);
 			OnLogStartedStopped(cmd);
 		}
 
-		private void WriteStartStopCmd(ReverseByteOrderWriter rbw, int[] channels)
+		private void WriteStartStopCmd(WriteDataBuffer dataBuffer, int[] channels)
 		{
-			rbw.Write(channels.Length);
+			dataBuffer.AddData(channels.Length);
 			for (int i = 0; i < 12; i++)
 			{
 				if (i < channels.Length)
 				{
-					rbw.Write(channels[i]);
+					dataBuffer.AddData(channels[i]);
 				}
 				else
 				{
-					rbw.Write(-1);
+					dataBuffer.AddData(-1);
 				}
 			}
-			Write(rbw.GetBytes());
+			Write(dataBuffer.GetData());
 		}
 
 		protected void WriteDefineSignal(int channel, int signalNumber, string mechUnitName, int axisNumber, float sampleTime)
@@ -126,29 +126,29 @@ namespace TestSignal
 			{
 				throw new ArgumentOutOfRangeException("axisNumber", axisNumber, "Value of must be between 1 and 6");
 			}
-			ReverseByteOrderWriter reverseByteOrderWriter = new ReverseByteOrderWriter();
-			reverseByteOrderWriter.Write(1);
-			reverseByteOrderWriter.Write(channel);
-			reverseByteOrderWriter.Write(signalNumber);
-			reverseByteOrderWriter.Write(mechUnitName, 40);
-			reverseByteOrderWriter.Write(axisNumber - 1);
-			reverseByteOrderWriter.Write(sampleTime);
-			Write(reverseByteOrderWriter.GetBytes());
+			WriteDataBuffer dataBuffer = new ();
+			dataBuffer.AddData(1);
+			dataBuffer.AddData(channel);
+			dataBuffer.AddData(signalNumber);
+			dataBuffer.AddData(mechUnitName, 40);
+			dataBuffer.AddData(axisNumber - 1);
+			dataBuffer.AddData(sampleTime);
+			Write(dataBuffer.GetData());
 		}
 
 		protected void WriteRemoveSignal(int channel)
 		{
-			ReverseByteOrderWriter reverseByteOrderWriter = new ReverseByteOrderWriter();
-			reverseByteOrderWriter.Write(4);
-			reverseByteOrderWriter.Write(channel);
-			Write(reverseByteOrderWriter.GetBytes());
+			WriteDataBuffer dataBuffer = new ();
+			dataBuffer.AddData(4);
+			dataBuffer.AddData(channel);
+			Write(dataBuffer.GetData());
 		}
 
 		protected void WriteEnumerateSignals()
 		{
-			ReverseByteOrderWriter reverseByteOrderWriter = new ReverseByteOrderWriter();
-			reverseByteOrderWriter.Write(6);
-			Write(reverseByteOrderWriter.GetBytes());
+			WriteDataBuffer dataBuffer = new ();
+			dataBuffer.AddData(6);
+			Write(dataBuffer.GetData());
 		}
 
 		public void Write(byte[] data)
@@ -181,8 +181,8 @@ namespace TestSignal
 
 		private void Read()
 		{
-			byte[] array = new byte[7712];
-			ReverseOrderByteBuffer reverseOrderByteBuffer = new ReverseOrderByteBuffer(array);
+			byte[] array = new byte[READ_BUFFER_LENGTH];
+			ReadDataBuffer dataBuffer = new (array);
 			int offset = 0;
 			int num2 = 0;
 			int bytesRead = 0;
@@ -196,7 +196,7 @@ namespace TestSignal
 					bytesRead = 0;
 					if (_networkStream.DataAvailable)
 					{
-						bytesRead = _networkStream.Read(array, offset, 7712 - offset);
+						bytesRead = _networkStream.Read(array, offset, READ_BUFFER_LENGTH - offset);
 						num2 = offset + bytesRead;
 						if (bytesRead > 0)
 						{
@@ -206,8 +206,8 @@ namespace TestSignal
 							//------
 							while (index >= 0 && !flag)
 							{
-								reverseOrderByteBuffer.CurrentIndex = index;
-								reverseOrderByteBuffer.Skip(1);
+								dataBuffer.CurrentIndex = index;
+								dataBuffer.Skip(1);
 								switch (array[index])
 								{
 									case 7:
@@ -217,10 +217,10 @@ namespace TestSignal
 												flag = true;
 												break;
 											}
-											int count = reverseOrderByteBuffer.ReadInt32();
-											int channel = reverseOrderByteBuffer.ReadInt32();
-											reverseOrderByteBuffer.ReadInt32();
-											OnLogData(channel, count, reverseOrderByteBuffer);
+											int count = dataBuffer.ReadInt();
+											int channel = dataBuffer.ReadInt();
+											dataBuffer.ReadInt();
+											OnLogData(channel, count, dataBuffer);
 											break;
 										}
 									case 55:
@@ -230,7 +230,7 @@ namespace TestSignal
 										}
 										else
 										{
-											OnAllSignalsRemoved(reverseOrderByteBuffer.ReadInt32());
+											OnAllSignalsRemoved(dataBuffer.ReadInt());
 										}
 										break;
 									case 60:
@@ -240,7 +240,7 @@ namespace TestSignal
 										}
 										else
 										{
-											OnError(reverseOrderByteBuffer.ReadString(80));
+											OnError(dataBuffer.ReadString(80));
 										}
 										break;
 									case 51:
@@ -250,7 +250,7 @@ namespace TestSignal
 										}
 										else
 										{
-											OnSignalDefined(reverseOrderByteBuffer.ReadInt32(), new LogSrvSignalDefinition(reverseOrderByteBuffer));
+											OnSignalDefined(dataBuffer.ReadInt(), new LogSrvSignalDefinition(dataBuffer));
 										}
 										break;
 									case 54:
@@ -260,7 +260,7 @@ namespace TestSignal
 										}
 										else
 										{
-											OnSignalRemoved(reverseOrderByteBuffer.ReadInt32());
+											OnSignalRemoved(dataBuffer.ReadInt());
 										}
 										break;
 									case 56:
@@ -273,7 +273,7 @@ namespace TestSignal
 											LogSrvSignalDefinition[] array2 = new LogSrvSignalDefinition[12];
 											for (int num6 = 0; num6 < 12; num6++)
 											{
-												array2[num6] = new LogSrvSignalDefinition(reverseOrderByteBuffer);
+												array2[num6] = new LogSrvSignalDefinition(dataBuffer);
 											}
 											OnSignalsEnumerated(array2);
 											break;
@@ -294,7 +294,7 @@ namespace TestSignal
 									break;
 									//-----
 								}
-								index = Array.FindIndex(array, reverseOrderByteBuffer.CurrentIndex, num2 - reverseOrderByteBuffer.CurrentIndex, (byte b) => b != 0);
+								index = Array.FindIndex(array, dataBuffer.CurrentIndex, num2 - dataBuffer.CurrentIndex, (byte b) => b != 0);
 							}
 							if (index < 0)
 							{
@@ -306,7 +306,7 @@ namespace TestSignal
 					else
 					{
 						_sleepCounter++;
-						if (_sleepCounter == 1000.0)
+						if (_sleepCounter == 1000)
 						{
 							Thread.Sleep(1);
 							_sleepCounter = 0;

@@ -4,7 +4,10 @@ namespace TestSignalLogger
     [Serializable]
 	public class Signal
 	{
-		public const int MOC_ID = 5;
+        private const int VELOCITY_SIGNAL = 1717;
+        private const int TORQUE_SIGNAL = 4947;
+        private const string ROBOT_NAME = "ROB_1";
+        public const int MOC_ID = 5;
 		private const int MOC_ERR = 50000;
 		public const int SYS_ERR_MOC_TEST_SIGNAL_ERROR = 133;
 		public const int SYS_ERR_MOC_UNKNOWN_SIGNAL_NUMBER = 228;
@@ -23,192 +26,47 @@ namespace TestSignalLogger
 		public const int LOGSRV_MECH_UNIT_UNKNOWN = -50229;
 		public const int LOGSRV_NO_CHANNEL_AVAILABLE = -50348;
 		public const int LOGSRV_NOT_INSTALLED = -50461;
-		private static double axcSampleTime = 0.000504;
-		private readonly int axis;
-		private int signal;
-		private readonly string mechunit;
-		private Trig trig;
-		private static readonly List<object> lineColors = new List<object>();
-		private static readonly List<Color> standardColors = new List<Color>();
+		private static double _axcSampleTime = 0.000504;
+		private readonly int _axis;
+		private int _signal;
+		private readonly string _mechunit;
+		private Trig _trig;
 
 		public static double AxcSampleTime
 		{
-			get
-			{
-				return axcSampleTime;
-			}
-			set
-			{
-				if (value > 1E-06)
-				{
-					axcSampleTime = value;
-				}
-			}
+			get => _axcSampleTime;
 		}
 
-		public int Axis
-		{
-			get
-			{
-				return axis;
-			}
-		}
-
+		public int Axis => _axis;
 		public int TestSignal
 		{
-			get
-			{
-				return signal;
-			}
+			get => _signal;
+			set => _signal = value;
 		}
-
-		public string MechUnit
-		{
-			get
-			{
-				return mechunit;
-			}
-		}
-
+		public string MechUnit => _mechunit;
 		public Trig Trig
 		{
-			get
-			{
-				return trig;
-			}
-			set
-			{
-				trig = value;
-			}
+			get => _trig;
+			set => _trig = value;
 		}
 
 		public Signal(string mechunit, int axis, int signal)
 		{
-			this.axis = axis;
-			this.signal = signal;
-			this.mechunit = mechunit;
+			_axis = axis;
+			_signal = signal;
+			_mechunit = mechunit;
 		}
 
-		public static Color GetStandardColor(int colorIndex)
+		public static Signal[] BuildSubscribtionsData()
 		{
-			Color result = Color.Gray;
-			while (colorIndex >= standardColors.Count)
+			Signal[] signals = new Signal[12];
+			int signal;
+			for (int i = 0; i < 12; i++)
 			{
-				switch (standardColors.Count)
-				{
-					case 0:
-						standardColors.Add(ColorsABB.StatusRed);
-						continue;
-					case 1:
-						standardColors.Add(ColorsABB.StatusBlue);
-						continue;
-					case 2:
-						standardColors.Add(ColorsABB.StatusGreen);
-						continue;
-					case 3:
-						standardColors.Add(ColorsABB.StatusCyan);
-						continue;
-					case 4:
-						standardColors.Add(ColorsABB.StatusYellow);
-						continue;
-					case 5:
-						standardColors.Add(ColorsABB.StatusOrange);
-						continue;
-					case 6:
-						standardColors.Add(ColorsABB.StatusMangenta);
-						continue;
-					case 7:
-						standardColors.Add(Color.YellowGreen);
-						continue;
-					case 8:
-						standardColors.Add(Color.CadetBlue);
-						continue;
-					case 9:
-						standardColors.Add(Color.Purple);
-						continue;
-					case 10:
-						standardColors.Add(Color.Crimson);
-						continue;
-					case 11:
-						standardColors.Add(Color.Brown);
-						continue;
-					case 12:
-						standardColors.Add(Color.SkyBlue);
-						continue;
-					case 13:
-						standardColors.Add(Color.LightGreen);
-						continue;
-					case 14:
-						standardColors.Add(Color.IndianRed);
-						continue;
-					case 15:
-						standardColors.Add(Color.DarkBlue);
-						continue;
-					case 16:
-						standardColors.Add(Color.DarkGreen);
-						continue;
-					case 17:
-						standardColors.Add(Color.DarkRed);
-						continue;
-				}
-				int num = 0;
-				int num2 = 180;
-				KnownColor[] array = (KnownColor[])Enum.GetValues(typeof(KnownColor));
-				int num3 = array.Length;
-				Color item;
-				do
-				{
-					num++;
-					Random random = new Random(standardColors.Count + num);
-					item = Color.FromKnownColor(array[random.Next(array.Length)]);
-				}
-				while ((num <= num3 && standardColors.Contains(item)) || (item.R >= num2 && item.G >= num2 && item.B >= num2));
-				if (!standardColors.Contains(item))
-				{
-					standardColors.Add(item);
-				}
+				signal = i < 6 ? VELOCITY_SIGNAL : TORQUE_SIGNAL;
+				signals[i] = new Signal(ROBOT_NAME, i + 1, signal);
 			}
-			if (colorIndex < standardColors.Count)
-			{
-				if (colorIndex < 0)
-				{
-					colorIndex = 0;
-				}
-				result = standardColors[colorIndex];
-			}
-			return result;
-		}
-
-		public static void SetStandardColor(int colorIndex, Color c)
-		{
-			if (colorIndex < standardColors.Count)
-			{
-				standardColors[colorIndex] = c;
-			}
-		}
-
-		public static Color GetColor(int colorIndex)
-		{
-			Color result = GetStandardColor(colorIndex);
-			if (colorIndex < lineColors.Count && lineColors[colorIndex] != null)
-			{
-				result = (Color)lineColors[colorIndex];
-			}
-			return result;
-		}
-
-		public static void SetColor(int colorIndex, Color c)
-		{
-			while (colorIndex >= lineColors.Count)
-			{
-				lineColors.Add(null);
-			}
-			lineColors[colorIndex] = c;
-		}
-
-		public void SetSignalNumber(int signal)
-		{
-			this.signal = signal;
-		}
+			return signals;
+        }
 	}
 }
