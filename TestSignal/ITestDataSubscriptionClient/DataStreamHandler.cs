@@ -1,4 +1,6 @@
-﻿using System.Net.Sockets;
+﻿using MotionMonitor.Enums;
+using System.Net.Sockets;
+using TestSignal;
 
 namespace MotionMonitor
 {
@@ -60,31 +62,6 @@ namespace MotionMonitor
             if (!_commandExecuted.WaitOne(COMMAND_TIMEOUT, true))
             {
                 throw new TimeoutException("RemoveAllSignals");
-            }
-        }
-        public void AddSubscription(int channelNo, int signalNo, string mechUnitName, int axisNo, float sampleTime)
-        {
-            _commandExecuted.Reset();
-            if (channelNo < 0 || channelNo > 11)
-            {
-                throw new ArgumentOutOfRangeException("channel", channelNo, string.Format("Value of must be between 0 and {0}", 11));
-            }
-
-            if (axisNo < 1 || axisNo > 6)
-            {
-                throw new ArgumentOutOfRangeException("axisNumber", axisNo, "Value of must be between 1 and 6");
-            }
-            WriteDataBuffer dataBuffer = new();
-            dataBuffer.AddData(1);
-            dataBuffer.AddData(channelNo);
-            dataBuffer.AddData(signalNo);
-            dataBuffer.AddData(mechUnitName, 40);
-            dataBuffer.AddData(axisNo - 1);
-            dataBuffer.AddData(sampleTime);
-            Write(dataBuffer.GetData());
-            if (!_commandExecuted.WaitOne(COMMAND_TIMEOUT, true))
-            {
-                throw new TimeoutException("DefineSignal");
             }
         }
 

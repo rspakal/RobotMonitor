@@ -5,6 +5,7 @@
         public async Task Main()
         {
             MotionDataProvider dataProvider = new MotionDataProvider();
+
             await dataProvider.StreamHandler.StartAsync();
         }
     }

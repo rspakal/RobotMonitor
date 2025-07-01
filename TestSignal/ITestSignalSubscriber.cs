@@ -2,7 +2,7 @@ namespace TestSignal
 {
 	public interface IDataSubscriber
 	{
-		SubscriptionData[] GetSubscriptionItems();
+		SubscriptionData GetSubscriptionData();
 		double SampleTime { get; }
 	}
 }

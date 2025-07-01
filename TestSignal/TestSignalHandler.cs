@@ -1,3 +1,4 @@
+using MotionMonitor.Enums;
 using System.Net;
 using System.Net.Sockets;
 using TestSignalLogger;
@@ -5,12 +6,10 @@ namespace TestSignal
 {
     public class TestSignalHandler : LogSrvStreamHandler, IDisposable, ITestDataSubscriptionClient, IMeasurementProviderHandler
     {
-        private const double MStoS = 0.001;
         private const int LOGSRVPORT = 4011;
         private readonly TimeSpan CONNECTION_TIMEOUT = new TimeSpan(0, 0, 6);
         private const int COMMAND_TIMEOUT = 500;
         private const int RECEIVE_BUFFER_SIZE = 32768;
-        private const int StoMS = 1000;
         private readonly IPAddress _ipAddress;
         private Socket _socket;
         private ManualResetEvent _connectionComplete;
@@ -125,7 +124,7 @@ namespace TestSignal
 
         private void Disconnect()
         {
-            Log.Write(LogLevel.Debug, "TestSignalHandler::Disconnect()", "Disconnecting!");
+            //Log.Write(LogLevel.Debug, "TestSignalHandler::Disconnect()", "Disconnecting!");
             if (!ValidateConnectionState(ConnectionState.Connected))
             {
                 return;
@@ -138,7 +137,7 @@ namespace TestSignal
             catch (Exception ex)
             {
                 NotifyMessage("Disconnect failed.");
-                Log.Write(LogLevel.Debug, "TestSignalHandler::Disconnect()", ex);
+                //Log.Write(LogLevel.Debug, "TestSignalHandler::Disconnect()", ex);
             }
             try
             {
@@ -149,24 +148,24 @@ namespace TestSignal
             catch (Exception ex2)
             {
                 NotifyMessage("Disconnect failed.");
-                Log.Write(LogLevel.Debug, "TestSignalHandler::Disconnect()", ex2);
+                //Log.Write(LogLevel.Debug, "TestSignalHandler::Disconnect()", ex2);
             }
             try
             {
                 SetConnectionState(ConnectionState.Idle);
-                Log.Write(LogLevel.Debug, "TestSignalHandler::Disconnect()", "Disconnect complete!");
+                //Log.Write(LogLevel.Debug, "TestSignalHandler::Disconnect()", "Disconnect complete!");
             }
             catch (Exception ex3)
             {
                 NotifyMessage("Disconnect failed.");
-                Log.Write(LogLevel.Debug, "TestSignalHandler::Disconnect()", ex3);
+                //Log.Write(LogLevel.Debug, "TestSignalHandler::Disconnect()", ex3);
             }
         }
 
         private void RemoveAllSignals()
         {
             _commandExecuted.Reset();
-            WriteRemoveAllSignals();
+            WriteRemoveAllSignals(LogSrvCommand.RemoveAllSignals);
             if (!_commandExecuted.WaitOne(COMMAND_TIMEOUT, true))
             {
                 throw new TimeoutException("RemoveAllSignals");
@@ -204,31 +203,26 @@ namespace TestSignal
 
         public void StartStopLog(LogSrvCommand cmd)
         {
-            Log.Write(LogLevel.Debug, "TestSignalHandler::StartStopLog", string.Format("{0} TestSignalHandler!", cmd));
+            //Log.Write(LogLevel.Debug, "TestSignalHandler::StartStopLog", string.Format("{0} TestSignalHandler!", cmd));
             try
             {
                 _commandExecuted.Reset();
-                int[] array = new int[_definedSignals.Keys.Count];
-                int num = 0;
-                foreach (int key in _definedSignals.Keys)
-                {
-                    array[num++] = key;
-                }
-                WriteStartStopLog(cmd, array);
+                var channels = _definedSignals.Keys.ToArray();
+                WriteStartStopLog(cmd, channels);
                 if (!_commandExecuted.WaitOne(COMMAND_TIMEOUT, true))
                 {
-                    Log.Write(LogLevel.Debug, "TestSignalHandler::StartStopLog", "Timeout!");
+                    //Log.Write(LogLevel.Debug, "TestSignalHandler::StartStopLog", "Timeout!");
                     throw new TimeoutException("StartStopLog");
                 }
             }
             catch (Exception ex)
             {
-                Log.Write(LogLevel.Debug, "TestSignalHandler::StartStopLog", ex);
+                //Log.Write(LogLevel.Debug, "TestSignalHandler::StartStopLog", ex);
                 throw;
             }
             finally
             {
-                Log.Write(LogLevel.Debug, "TestSignalHandler::StartStopLog", "Finished!");
+                //Log.Write(LogLevel.Debug, "TestSignalHandler::StartStopLog", "Finished!");
             }
         }
 
@@ -265,7 +259,7 @@ namespace TestSignal
         {
             foreach (int key in _definedSignals.Keys)
             {
-                ReceiveLogDataObject receiveLogDataObject = new ReceiveLogDataObject();
+                ReceiveLogDataObject receiveLogDataObject = new();
                 if (AntiAliasFiltering)
                 {
                     double sampleTime = _definedSignals[key].SampleTime;
@@ -277,7 +271,7 @@ namespace TestSignal
                     }
                     receiveLogDataObject.AntiAliasFilter = antiAliasFilter;
                 }
-                receiveLogDataObject.LoggedData = new List<double>();
+                receiveLogDataObject.LoggedData = new();
                 receiveLogDataObject.LoggedSamples = 0;
                 receiveLogDataObject.ReceivedLogData = 0;
                 _dataLogs.Add(key, receiveLogDataObject);
@@ -489,12 +483,13 @@ namespace TestSignal
             return _definedSignals.Count;
         }
 
-        public void DefineSignal(int signalNumber, string mechUnitName, int axisNumber, double sampleTime, out int channel)
+        public void DefineSignal(string mechUnitName, int axisNumber, int signalNumber, double sampleTime, out int channel)
         {
             if (!CanAddChannel())
             {
-                throw new Exception(string.Format("Cannot add more channels, max is {0}.", base.MaxNoSignals));
+                throw new Exception(string.Format("Cannot add more channels, max is {0}.", base.MAX));
             }
+
             channel = FindChannel(signalNumber, mechUnitName, axisNumber, sampleTime);
             if (!SignalDefined(signalNumber, mechUnitName, axisNumber, sampleTime))
             {
@@ -510,7 +505,7 @@ namespace TestSignal
 
         private bool CanAddChannel()
         {
-            return _definedSignals.Count < MaxNoSignals;
+            return _definedSignals.Count < MAX_SIGNALS_AMOUNT;
         }
 
         private bool SignalDefined(int signalNumber, string mechUnitName, int axisNumber, double sampleTime)
@@ -527,10 +522,12 @@ namespace TestSignal
 
         private int FindChannel(int signalNumber, string mechUnitName, int axisNumber, double sampleTime)
         {
-            int num = MaxNoSignals - 1;
-            foreach (LogSrvSignalDefinition value in _definedSignals.Values)
+            var channel = _definedSignals.FirstOrDefault(s => s.Value.SignalNo == signalNumber && s.Value.MechName == mechUnitName && s.Value.AxisNo == axisNumber && s.Value.SampleTime == sampleTime);
+
+            int num = MAX_SIGNALS_AMOUNT - 1;
+            foreach (var signal in _definedSignals.Values)
             {
-                if (value.SignalNo == signalNumber && value.MechName == mechUnitName && value.AxisNo == axisNumber && value.SampleTime == sampleTime)
+                if (signal.SignalNo == signalNumber && signal.MechName == mechUnitName && signal.AxisNo == axisNumber && signal.SampleTime == sampleTime)
                 {
                     return num;
                 }
@@ -623,16 +620,18 @@ namespace TestSignal
             Disconnect();
         }
 
+        //DataSubscriptionClient Init
         void ITestDataSubscriptionClient.Connect()
         {
             try
             {
+                //ConnectionClient ConnectAsync
                 Connect();
                 RemoveAllSignals();
             }
             catch (Exception ex)
             {
-                Log.Write(LogLevel.Error, "TestSignalHandler::Connect()", ex);
+                //Log.Write(LogLevel.Error, "TestSignalHandler::Connect()", ex);
                 Disconnect();
                 throw;
             }
@@ -641,20 +640,18 @@ namespace TestSignal
         void ITestDataSubscriptionClient.AddSubscriber(IDataSubscriber subscriber)
         {
             double sampleTime = subscriber.SampleTime;
-            SubscriptionData[] subscriptionData = subscriber.GetSubscriptionItems();
-            foreach (var data in subscriptionData)
+            var subscriptionData = subscriber.GetSubscriptionData();
+            try
             {
-                try
-                {
-                    int channel;
-                    DefineSignal(data.SignalNumber, data.MechUnitName, data.AxisNumber, sampleTime, out channel);
-                    _trigs.Add(channel, data.Trig);
-                }
-                catch (Exception ex)
-                {
-                    Log.Write(LogLevel.Error, string.Format("TestSignalHandler::AddSubscriber({0} {1} {2})", data.SignalNumber, data.MechUnitName, data.AxisNumber), ex);
-                }
+                int channel;
+                DefineSignal(subscriptionData.MechUnitName, subscriptionData.AxisNo, subscriptionData.SignalNo, sampleTime, out channel);
+                _trigs.Add(channel, subscriptionData.Trig);
             }
+            catch (Exception ex)
+            {
+                //Log.Write(LogLevel.Error, string.Format("TestSignalHandler::AddSubscriber({0} {1} {2})", subscriptionData.SignalNo, subscriptionData.MechUnitName, subscriptionData.AxisNo), ex);
+            }
+
         }
 
         void ITestDataSubscriptionClient.StartSubscription()
@@ -698,8 +695,7 @@ namespace TestSignal
                 {
                     for (int i = 0; i < providers.Length; i++)
                     {
-                        IDataSubscriber testSignalSubscriber = providers[i] as IDataSubscriber;
-                        if (testSignalSubscriber != null)
+                        if (providers[i] is IDataSubscriber testSignalSubscriber)
                         {
                             ((ITestDataSubscriptionClient)this).AddSubscriber(testSignalSubscriber);
                         }
@@ -709,8 +705,9 @@ namespace TestSignal
             }
             catch (Exception ex)
             {
-                Log.Write(LogLevel.Error, "TestSignalHandler::Init()", ex);
+                //Log.Write(LogLevel.Error, "TestSignalHandler::Init()", ex);
             }
+
             if (providers != null)
             {
                 PrepareLogDataBuffer();

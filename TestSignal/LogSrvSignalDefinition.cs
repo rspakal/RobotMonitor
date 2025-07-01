@@ -1,17 +1,9 @@
+using MotionMonitor.Enums;
+
 namespace TestSignal
 {
 	public class LogSrvSignalDefinition
 	{
-		public enum LogSvrValueFormat
-		{
-			Undefined,
-			Bool,
-			Short,
-			Int,
-			Float,
-			String
-		}
-
 		private const int MECH_UNIT_NAME_LENGTH = 40;
 		internal const int LOGSRV_SIGNAL_DEFINITION_MESSAGE_SIZE = 60;
 		private readonly int _signalNo;
@@ -48,7 +40,7 @@ namespace TestSignal
 		internal LogSrvSignalDefinition(ReadDataBuffer buffer)
 		{
 			_signalNo = buffer.ReadInt();
-			_mechName = buffer.ReadString(40);
+			_mechName = buffer.ReadString(MECH_UNIT_NAME_LENGTH);
 			_axisNo = buffer.ReadInt();
 			_format = (LogSvrValueFormat)buffer.ReadInt();
 			_sampleTime = buffer.ReadFloat();

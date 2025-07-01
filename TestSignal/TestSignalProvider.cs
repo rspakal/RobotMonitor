@@ -1,23 +1,24 @@
 using TestSignalLogger;
 namespace TestSignal
 {
-    public class TestSignalProvider : IMeasurementsProvider, IDisposable, IDataSubscriber
+    public class DataProvider : IMeasurementsProvider, IDataSubscriber, IDisposable
     {
-        private const int StoMS = 1000;
-        private readonly int _signalNumber;
-        private readonly int _axisNo;
-        private readonly double _sampleTime;
+        private readonly int _signalNo;
         private readonly string _mechUnitName;
+        private readonly int _axisNo;
+        private readonly Trig _trig;
+
+        private readonly SubscriptionData _subscription;
+        private readonly double _sampleTime;
         private readonly bool _antiAliasFiltering;
-        private readonly Trig trig;
 
         public double SampleTime => _sampleTime;
         public bool RequiresCommonHandler => true;
         public string HandlerKey => "TestSignalHandler";
-        public TestSignalProvider(string mechUnitName, int signalNumber, int axisNo, double sampleTime, bool antiAliasFiltering, Trig trig)
+        public DataProvider(string mechUnitName, int signalNo, int axisNo, double sampleTime, bool antiAliasFiltering, Trig trig)
         {
             _mechUnitName = mechUnitName;
-            _signalNumber = signalNumber;
+            _signalNo = signalNo;
             _axisNo = axisNo;
             _sampleTime = sampleTime;
             _antiAliasFiltering = antiAliasFiltering;
@@ -25,7 +26,7 @@ namespace TestSignal
             {
                 _sampleTime = Signal.AxcSampleTime * 1000.0;
             }
-            this.trig = trig;
+            _trig = trig;
         }
 
         public void Start()
@@ -40,9 +41,9 @@ namespace TestSignal
         {
         }
 
-        public SubscriptionData[] GetSubscriptionItems()
+        public SubscriptionData GetSubscriptionData()
         {
-            return [new SubscriptionData(_signalNumber, _mechUnitName, _axisNo, trig)];
+            return new SubscriptionData(_mechUnitName, _axisNo, _signalNo, _trig);
         }
     }
 }

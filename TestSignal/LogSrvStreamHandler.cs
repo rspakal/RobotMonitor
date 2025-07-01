@@ -1,29 +1,18 @@
+using MotionMonitor.Enums;
 using System.Net.Sockets;
 namespace TestSignal
 {
     public abstract class LogSrvStreamHandler
 	{
-		private enum LogSvrMessage
-		{
-			LogData = 7,
-			SignalDefined = 51,
-			LoggingStarted = 52,
-			LoggingStopped = 53,
-			SignalRemoved = 54,
-			AllSignalsRemoved = 55,
-			SignalsEnumerated = 56,
-			Error = 60
-		}
 
 		private const int READ_BUFFER_LENGTH = 7712;
 		private const int LOGSRV_MAX_ERROR_MESSAGE_SIZE = 80;
-		private const int MAX_NO_EXTERNAL_SIGNALS = 12;
+		public const int MAX_SIGNALS_AMOUNT = 12;
 		private const int LOGSRV_MECHANICAL_UNIT_MAX_NAME_LENGTH = 40;
 		private bool _reading;
 		private NetworkStream? _networkStream;
 		private Thread? _readThread;
 		private int _sleepCounter;
-		protected int MaxNoSignals => MAX_NO_EXTERNAL_SIGNALS;
 		protected void StartStreamHandler(Socket socket, bool ownsSocket)
 		{
 			_networkStream = new NetworkStream(socket, ownsSocket)
@@ -84,70 +73,62 @@ namespace TestSignal
 			}
 		}
 
-		protected void WriteRemoveAllSignals()
-		{
-			WriteDataBuffer dataBuffer = new();
-			dataBuffer.AddData(5);
-			Write(dataBuffer.GetData());
-		}
-
-		protected void WriteStartStopLog(LogSrvCommand cmd, int[] channels)
+		protected void WriteRemoveAllSignals(LogSrvCommand cmd)
 		{
 			WriteDataBuffer dataBuffer = new();
 			dataBuffer.AddData((int)cmd);
-			WriteStartStopCmd(dataBuffer, channels);
-			OnLogStartedStopped(cmd);
-		}
-
-		private void WriteStartStopCmd(WriteDataBuffer dataBuffer, int[] channels)
-		{
-			dataBuffer.AddData(channels.Length);
-			for (int i = 0; i < 12; i++)
-			{
-				if (i < channels.Length)
-				{
-					dataBuffer.AddData(channels[i]);
-				}
-				else
-				{
-					dataBuffer.AddData(-1);
-				}
-			}
 			Write(dataBuffer.GetData());
 		}
 
-		protected void WriteDefineSignal(int channel, int signalNumber, string mechUnitName, int axisNumber, float sampleTime)
+		public void WriteStartStopLog(LogSrvCommand cmd, int[] channels)
 		{
-			if (channel < 0 || channel > 11)
+            WriteDataBuffer dataBuffer = new();
+            dataBuffer.AddData((int)cmd);
+            dataBuffer.AddData(channels.Length);
+			for (int i = 0; i < 12; i++)
 			{
-				throw new ArgumentOutOfRangeException("channel", channel, string.Format("Value of must be between 0 and {0}", 11));
+				var data = i < channels.Length ? channels[i] : -1;
+				dataBuffer.AddData(data);
+            }
+
+			Write(dataBuffer.GetData());
+
+			//?????
+            OnLogStartedStopped(cmd);
+        }
+
+		protected void WriteDefineSignal(int channelNo, int signalNo, string mechUnitName, int axisNo, float sampleTime)
+		{
+			if (channelNo < 0 || channelNo > 11)
+			{
+				throw new ArgumentOutOfRangeException("channel", channelNo, string.Format("Value of must be between 0 and {0}", 11));
 			}
-			if (axisNumber < 1 || axisNumber > 6)
+			if (axisNo < 1 || axisNo > 6)
 			{
-				throw new ArgumentOutOfRangeException("axisNumber", axisNumber, "Value of must be between 1 and 6");
+				throw new ArgumentOutOfRangeException("axisNumber", axisNo, "Value of must be between 1 and 6");
 			}
 			WriteDataBuffer dataBuffer = new ();
 			dataBuffer.AddData(1);
-			dataBuffer.AddData(channel);
-			dataBuffer.AddData(signalNumber);
+			dataBuffer.AddData(channelNo);
+			dataBuffer.AddData(signalNo);
 			dataBuffer.AddData(mechUnitName, 40);
-			dataBuffer.AddData(axisNumber - 1);
+			dataBuffer.AddData(axisNo - 1);
 			dataBuffer.AddData(sampleTime);
 			Write(dataBuffer.GetData());
 		}
 
-		protected void WriteRemoveSignal(int channel)
+		protected void WriteRemoveSignal(LogSrvCommand cmd, int channel)
 		{
 			WriteDataBuffer dataBuffer = new ();
-			dataBuffer.AddData(4);
+			dataBuffer.AddData((int)cmd);
 			dataBuffer.AddData(channel);
 			Write(dataBuffer.GetData());
 		}
 
-		protected void WriteEnumerateSignals()
+		protected void WriteEnumerateSignals(LogSrvCommand cmd)
 		{
 			WriteDataBuffer dataBuffer = new ();
-			dataBuffer.AddData(6);
+			dataBuffer.AddData((int)cmd);
 			Write(dataBuffer.GetData());
 		}
 

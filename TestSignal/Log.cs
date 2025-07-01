@@ -1,3 +1,5 @@
+using MotionMonitor.Enums;
+
 namespace TestSignal
 {
 	public class Log
@@ -92,5 +94,10 @@ namespace TestSignal
 			}
 			mutex.ReleaseMutex();
 		}
-	}
+
+        internal static void Write(LogLevel error, string v, Exception ex)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

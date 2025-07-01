@@ -27,34 +27,34 @@ namespace TestSignalLogger
 		public const int LOGSRV_NO_CHANNEL_AVAILABLE = -50348;
 		public const int LOGSRV_NOT_INSTALLED = -50461;
 		private static double _axcSampleTime = 0.000504;
-		private readonly int _axis;
-		private int _signal;
-		private readonly string _mechunit;
+
+		private readonly int _axisNo;
+		private int _signalNo;
+		private readonly string _mechUnitName;
 		private Trig _trig;
 
 		public static double AxcSampleTime
 		{
 			get => _axcSampleTime;
 		}
-
-		public int Axis => _axis;
-		public int TestSignal
+		public int AxisNo => _axisNo;
+		public int SignalNo
 		{
-			get => _signal;
-			set => _signal = value;
+			get => _signalNo;
+			set => _signalNo = value;
 		}
-		public string MechUnit => _mechunit;
+		public string MechUnitName => _mechUnitName;
 		public Trig Trig
 		{
 			get => _trig;
 			set => _trig = value;
 		}
 
-		public Signal(string mechunit, int axis, int signal)
+		public Signal(string mechUnitName, int axisNo, int signalNo)
 		{
-			_axis = axis;
-			_signal = signal;
-			_mechunit = mechunit;
+			_axisNo = axisNo;
+			_signalNo = signalNo;
+			_mechUnitName = mechUnitName;
 		}
 
 		public static Signal[] BuildSubscribtionsData()

@@ -1,4 +1,6 @@
-namespace TestSignal
+using TestSignal;
+
+namespace MotionMonitor.Enums
 {
 	public interface IMeasurementProviderHandler
 	{

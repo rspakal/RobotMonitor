@@ -6,17 +6,32 @@ using System.Threading.Tasks;
 
 namespace MotionMonitor
 {
-    public class MotionDataProvider
+    public class DataProvider
     {
         private ManualResetEvent _commandExecuted;
         public readonly DataStreamHandler StreamHandler;
         public readonly Signal[] OrderedSignals;
         public Dictionary<int, Signal> SubscribedSignals { get; set; }
-        public MotionDataProvider()
+
+        private const int StoMS = 1000;
+        private readonly int _signalNo;
+        private readonly int _axisNo;
+        private readonly double _sampleTime;
+        private readonly string _mechUnitName;
+        private readonly bool _antiAliasFiltering;
+        private readonly Trig trig;
+        public DataProvider(string mechUnitName, int signalNo, int axisNo, double sampleTime, bool antiAliasFiltering, Trig trig)
         {
-            StreamHandler = new DataStreamHandler(this);
-            OrderedSignals = Signal.BuildOrderedSignals();
-            SubscribedSignals = new();
+            _mechUnitName = mechUnitName;
+            _signalNo = signalNo;
+            _axisNo = axisNo;
+            _sampleTime = sampleTime;
+            _antiAliasFiltering = antiAliasFiltering;
+            if (_antiAliasFiltering)
+            {
+                _sampleTime = Signal.AxcSampleTime * 1000.0;
+            }
+            this.trig = trig;
         }
 
         public void DefineSignal(int signalNumber, string mechUnitName, int axisNumber, double sampleTime, out int channel)

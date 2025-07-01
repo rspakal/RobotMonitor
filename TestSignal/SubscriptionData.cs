@@ -3,17 +3,36 @@ namespace TestSignal
 {
     public class SubscriptionData
     {
-        public int SignalNumber;
-        public string MechUnitName;
-        public int AxisNumber;
-        public Trig Trig;
-
-        public SubscriptionData(int signalNumber, string mechUnitName, int axisNumber, Trig trig)
+        private int _signalNo;
+        private string _mechUnitName;
+        private int _axisNo;
+        private Trig _trig;
+        public int SignalNo
         {
-            SignalNumber = signalNumber;
-            MechUnitName = mechUnitName;
-            AxisNumber = axisNumber;
-            Trig = trig;
+            get => _signalNo;
+            set => _signalNo = value;
+        }
+        public string MechUnitName
+        {
+            get => _mechUnitName;
+            set => _mechUnitName = value;
+        }
+        public int AxisNo
+        {
+            get => _axisNo; 
+            set => _axisNo = value; 
+        }
+        public Trig Trig
+        {
+            get => _trig;
+            set => _trig = value;
+        }
+        public SubscriptionData(string mechUnitName, int axisNo, int signalNo, Trig trig)
+        {
+            _mechUnitName = mechUnitName;
+            _axisNo = axisNo;
+            _signalNo = signalNo;
+            _trig = trig;
         }
     }
 }

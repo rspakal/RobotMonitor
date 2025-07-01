@@ -9,10 +9,11 @@ using System.Threading.Tasks;
 
 namespace MotionMonitor
 {
-    public class RobotController
+    public class ConnectionClient
     {
+        private readonly byte[] _ipAdressBytes = { 192, 168, 125, 1 };
         private readonly IPAddress _ipAddress;
-        public readonly Socket socket;
+        private readonly Socket _socket;
         private const int PORT = 4011;
         private const int RECEIVE_BUFFER_SIZE = 32768;
         private const int CONNECTION_TIMEOUT = 500;
@@ -21,10 +22,10 @@ namespace MotionMonitor
         private ManualResetEvent _commandExecuted;
         public event EventHandler<PropertyChangedEventArgs<ConnectionState>> ConnectionStateChanged;
         public event EventHandler<NotifyEventArgs<bool>> ConnectedChanged;
-        public RobotController()
+        public ConnectionClient()
         {
-            _ipAddress = new(new byte[4] { 192, 168, 125, 1 });
-            socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+            _ipAddress = new(_ipAdressBytes);
+            _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
             {
                 ReceiveBufferSize = RECEIVE_BUFFER_SIZE
             };
@@ -51,6 +52,50 @@ namespace MotionMonitor
                 SetConnectionState(ConnectionState.Idle);
             }
         }
+
+        public async Task DisconnectAsync()
+        {
+            //Log.Write(LogLevel.Debug, "TestSignalHandler::Disconnect()", "Disconnecting!");
+            if (connectionState != ConnectionState.Connected)
+            {
+                return;
+            }
+
+            try
+            {
+                _socket.Shutdown(SocketShutdown.Both);
+                await _socket.DisconnectAsync(false);
+            }
+            catch (Exception ex)
+            {
+                //NotifyMessage("Disconnect failed.");
+                //Log.Write(LogLevel.Debug, "TestSignalHandler::Disconnect()", ex);
+            }
+
+            try
+            {
+                StopStreamHandler();
+                SetConnectionState(ConnectionState.Disconnecting);
+                _socket.Close();
+            }
+            catch (Exception ex2)
+            {
+                //NotifyMessage("Disconnect failed.");
+                //Log.Write(LogLevel.Debug, "TestSignalHandler::Disconnect()", ex2);
+            }
+
+            try
+            {
+                SetConnectionState(ConnectionState.Idle);
+                //Log.Write(LogLevel.Debug, "TestSignalHandler::Disconnect()", "Disconnect complete!");
+            }
+            catch (Exception ex3)
+            {
+                //NotifyMessage("Disconnect failed.");
+                //Log.Write(LogLevel.Debug, "TestSignalHandler::Disconnect()", ex3);
+            }
+        }
+
 
         private void SetConnectionState(ConnectionState newState)
         {

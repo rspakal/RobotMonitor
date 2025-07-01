@@ -1,4 +1,4 @@
-namespace TestSignal
+namespace MotionMonitor.Enums
 {
 	public enum LogSrvCommand
 	{

@@ -1,3 +1,4 @@
+using MotionMonitor.Enums;
 using System.Diagnostics;
 using System.Net;
 using System.Runtime.CompilerServices;
@@ -59,7 +60,7 @@ namespace TestSignal
 					awaiter.GetResult();
 					if (testSignalLogData.testSignalHandler != null && testSignalLogData.testSignalHandler.ConnectionState == ConnectionState.Idle)
 					{
-						List<TestSignalProvider> testSignalProviders = testSignalLogData.testSignalProviders;
+						List<DataProvider> testSignalProviders = testSignalLogData.testSignalProviders;
 						if (testSignalProviders != null)
 						{
 							testSignalProviders.Clear();
@@ -78,12 +79,12 @@ namespace TestSignal
 						testSignalLogData.testSignalHandler.MaxLogTime = maxLogTime;
 						if (testSignalLogData.testSignalProviders == null)
 						{
-							testSignalLogData.testSignalProviders = new List<TestSignalProvider>();
+							testSignalLogData.testSignalProviders = new List<DataProvider>();
 						}
 						Signal[] array = signals;
 						foreach (Signal signal in array)
 						{
-							testSignalLogData.testSignalProviders.Add(new TestSignalProvider(signal.MechUnit, signal.TestSignal, signal.Axis + 1, sampleTime, antiAliasFiltering, signal.Trig));
+							testSignalLogData.testSignalProviders.Add(new DataProvider(signal.MechUnitName, signal.SignalNo, signal.AxisNo + 1, sampleTime, antiAliasFiltering, signal.Trig));
 						}
 						IMeasurementProviderHandler testSignalHandler = testSignalLogData.testSignalHandler;
 						IMeasurementsProvider[] providers = testSignalLogData.testSignalProviders.ToArray();
@@ -99,7 +100,7 @@ namespace TestSignal
 							}
 							goto IL_02ad;
 						}
-						List<TestSignalProvider>.Enumerator enumerator = testSignalLogData.testSignalProviders.GetEnumerator();
+						List<DataProvider>.Enumerator enumerator = testSignalLogData.testSignalProviders.GetEnumerator();
 						try
 						{
 							while (enumerator.MoveNext())
@@ -262,7 +263,7 @@ namespace TestSignal
 		private const int LOGSRV_MAX_BLOCK_SIZE = 192;
 		private readonly int[] _sampleFactors = { 1, 2, 4, 8, 16, 32, 48, 64, 96, 192 };
 		public TestSignalHandler testSignalHandler;
-		public List<TestSignalProvider> testSignalProviders = new();
+		public List<DataProvider> testSignalProviders = new();
 		public string Name => "Socket";
 		public double SampleTime => testSignalHandler.SampleTime;
 		public double SampleTimeBase => Signal.AxcSampleTime;
