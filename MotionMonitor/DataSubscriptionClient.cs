@@ -40,6 +40,7 @@ namespace MotionMonitor
             }
         }
         public void AddSubscriber(IDataSubscriber subscriber)
+
         { }
         public void StartSubscription()
         { }
