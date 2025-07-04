@@ -267,7 +267,6 @@ namespace TestSignal
 		public string Name => "Socket";
 		public double SampleTime => testSignalHandler.SampleTime;
 		public double SampleTimeBase => Signal.AxcSampleTime;
-
 		public int[] SampleFactors => _sampleFactors;
 
 		public event EventHandler LogDataReceived;

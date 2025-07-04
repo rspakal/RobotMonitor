@@ -1,15 +1,10 @@
-﻿using System.Net.Sockets;
+﻿using Microsoft.VisualBasic;
+using System.Net.Sockets;
 
 namespace MotionMonitor
 {
     public class DataStreamHandler
     {
-        private const int COMMAND_TIMEOUT = 500;
-        private ManualResetEvent _commandExecuted;
-        public DataStreamHandler()
-        {
-            _commandExecuted = new ManualResetEvent(false);
-        }
         private enum DataMessage
         {
             LogData = 7,
@@ -20,6 +15,15 @@ namespace MotionMonitor
             AllSignalsRemoved = 55,
             SignalsEnumerated = 56,
             Error = 60
+        }
+
+        private const int COMMAND_TIMEOUT = 500;
+        private ManualResetEvent _commandExecuted;
+        private DataSubscriptionClient _subscriptionClient;
+        public DataStreamHandler(DataSubscriptionClient subscriptionClient)
+        {
+            _subscriptionClient = subscriptionClient;
+            _commandExecuted = new ManualResetEvent(false);
         }
 
 
@@ -50,7 +54,6 @@ namespace MotionMonitor
             }
             while (!flag);
         }
-
         public void RemoveAllSubscribtions(LogSrvCommand cmd, ManualResetEvent commandExecuted)
         {
             _commandExecuted.Reset();
@@ -62,25 +65,25 @@ namespace MotionMonitor
                 throw new TimeoutException("RemoveAllSignals");
             }
         }
-        public void AddSubscription(int channelNo, int signalNo, string mechUnitName, int axisNo, float sampleTime)
+        public void SendSubscriptionRequest(DataSubscription dataSubscription)
         {
             _commandExecuted.Reset();
-            if (channelNo < 0 || channelNo > 11)
+            if (dataSubscription.ChannelNo < 0 || dataSubscription.ChannelNo > 11)
             {
-                throw new ArgumentOutOfRangeException("channel", channelNo, string.Format("Value of must be between 0 and {0}", 11));
+                throw new ArgumentOutOfRangeException("channel", dataSubscription.ChannelNo, string.Format("Value of must be between 0 and {0}", 11));
             }
 
-            if (axisNo < 1 || axisNo > 6)
+            if (dataSubscription.AxisNo < 1 || dataSubscription.AxisNo > 6)
             {
-                throw new ArgumentOutOfRangeException("axisNumber", axisNo, "Value of must be between 1 and 6");
+                throw new ArgumentOutOfRangeException("axisNumber", dataSubscription.AxisNo, "Value of must be between 1 and 6");
             }
             WriteDataBuffer dataBuffer = new();
             dataBuffer.AddData(1);
-            dataBuffer.AddData(channelNo);
-            dataBuffer.AddData(signalNo);
-            dataBuffer.AddData(mechUnitName, 40);
-            dataBuffer.AddData(axisNo - 1);
-            dataBuffer.AddData(sampleTime);
+            dataBuffer.AddData(dataSubscription.ChannelNo);
+            dataBuffer.AddData(dataSubscription.SignalNo);
+            dataBuffer.AddData(dataSubscription.MechUnitName, 40);
+            dataBuffer.AddData(dataSubscription.AxisNo - 1);
+            dataBuffer.AddData(dataSubscription.SampleTime);
             Write(dataBuffer.GetData());
             if (!_commandExecuted.WaitOne(COMMAND_TIMEOUT, true))
             {
@@ -91,16 +94,12 @@ namespace MotionMonitor
 
         public void OnAllSubscriptionsRemoved(int status)
         {
-            lock (_definedSignals)
-            {
-                _definedSignals.Clear();
-                _orderedSignals.Clear();
-            }
-            lock (_trigs)
-            {
-                _trigs.Clear();
-            }
-            _commandExecuted.Set();
+            _subscriptionClient.RemoveAllActiveSubscriptions(_commandExecuted);
+        }
+
+        protected override void OnSubscriptionActivated(int channel, LogSrvSignalDefinition signal, DataSubscription dataSubscription)
+        {
+            _subscriptionClient.AddActiveSubscription(dataSubscription, _commandExecuted);
         }
     }
 }

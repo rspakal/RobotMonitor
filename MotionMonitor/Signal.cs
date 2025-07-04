@@ -36,7 +36,6 @@ namespace MotionMonitor
 		{
 			get => _axcSampleTime;
 		}
-
 		public int AxisNo => _axisNo;
 		public int TestSignal
 		{
