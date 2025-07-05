@@ -1,17 +1,18 @@
 ﻿namespace MotionMonitor
 {
-    public class DataSubscription
+    public abstract class DataSubscription
     {
-        private const int VELOCITY_SIGNAL = 1717;
-        private const int TORQUE_SIGNAL = 4947;
-        private const string ROBOT_NAME = "ROB_1";
-        public const float AXC_SAMPLE_TIME = 0.000504f;
+        protected const int VELOCITY_SIGNAL = 1717;
+        protected const int TORQUE_SIGNAL = 4947;
+        protected const string ROBOT_NAME = "ROB_1";
+        protected const float AXC_SAMPLE_TIME = 0.000504f;
+        protected const int MECH_UNIT_NAME_LENGTH = 40;
 
-        private int _channelNo;
-        private int _signalNo;
-        private string _mechUnitName;
-        private int _axisNo;
-        private float _sampleTime;
+        protected int _channelNo;
+        protected int _signalNo;
+        protected string _mechUnitName;
+        protected int _axisNo;
+        protected float _sampleTime;
 
 
         public int ChannelNo
@@ -49,29 +50,29 @@
             _sampleTime = sampleTime;
         }
 
-        public static List<DataSubscription> BuildRequestedDataSubscribtions()
-        {
-            List<DataSubscription> subscriptions = new();
-            int signalNo;
-            int axisNo = 1;
-            for (int i = 0; i < 12; i++)
-            {
-                signalNo = i <= 6 ? VELOCITY_SIGNAL : TORQUE_SIGNAL;
-                if (i < 6)
-                {
-                    axisNo = i + 1;
-                    signalNo = VELOCITY_SIGNAL;
-                }
-                else
-                {
-                    axisNo = i - 5;
-                    signalNo = TORQUE_SIGNAL;
-                }
+        //public static List<DataSubscription> BuildRequestedDataSubscribtions()
+        //{
+        //    List<DataSubscription> subscriptions = new();
+        //    int signalNo;
+        //    int axisNo = 1;
+        //    for (int i = 0; i < 12; i++)
+        //    {
+        //        signalNo = i <= 6 ? VELOCITY_SIGNAL : TORQUE_SIGNAL;
+        //        if (i < 6)
+        //        {
+        //            axisNo = i + 1;
+        //            signalNo = VELOCITY_SIGNAL;
+        //        }
+        //        else
+        //        {
+        //            axisNo = i - 5;
+        //            signalNo = TORQUE_SIGNAL;
+        //        }
 
-                subscriptions.Add(new DataSubscription(i, signalNo, ROBOT_NAME, axisNo, AXC_SAMPLE_TIME));
-            }
-            return subscriptions;
-        }
+        //        subscriptions.Add(new DataSubscription(i, signalNo, ROBOT_NAME, axisNo, AXC_SAMPLE_TIME));
+        //    }
+        //    return subscriptions;
+        //}
 
     }
 
