@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MotionMonitor
+namespace MotionMonitor.Enums
 {
-    public enum ConnectionState
+    public enum ConnectionStates
     {
         Idle,
         Connecting,

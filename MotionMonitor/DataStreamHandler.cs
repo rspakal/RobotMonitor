@@ -1,4 +1,5 @@
 ﻿using MotionMonitor.Enums;
+using System.Threading.Channels;
 
 namespace MotionMonitor
 {
@@ -29,8 +30,6 @@ namespace MotionMonitor
             _subscriptionHandler = subscriptionHandler;
             _commandExecuted = new ManualResetEvent(false);
         }
-
-
         private void Write(byte[] data)
         {
             if (_networkStream == null || data == null)
@@ -58,15 +57,25 @@ namespace MotionMonitor
             }
             while (!flag);
         }
-        public void SendCancelAllSubscribtionsRequest()
+
+        #region Log output messages handlers
+        public void SendStartStopLoggingRequest(LogCommands command, List<int> channels)
         {
             _commandExecuted.Reset();
             WriteDataBuffer dataBuffer = new();
-            dataBuffer.AddData((int)LogCommands.CancelAllSubscriptions);
+            dataBuffer.AddData((int)command);
+            dataBuffer.AddData(channels.Count);
+            for (int i = 0; i < 12; i++)
+            {
+                var data = i < channels.Count ? channels[i] : -1;
+                dataBuffer.AddData(data);
+            }
+
             Write(dataBuffer.GetData());
             if (!_commandExecuted.WaitOne(COMMAND_TIMEOUT, true))
             {
-                throw new TimeoutException("RemoveAllSignals");
+                //Log.Write(LogLevel.Debug, "TestSignalHandler::StartStopLog", "Timeout!");
+                throw new TimeoutException("StartStopLog");
             }
         }
         public void SendSubscriptionRequest(DataSubscription dataSubscription)
@@ -94,8 +103,172 @@ namespace MotionMonitor
                 throw new TimeoutException("DefineSignal");
             }
         }
+        public void SendCancelAllSubscribtionsRequest()
+        {
+            _commandExecuted.Reset();
+            WriteDataBuffer dataBuffer = new();
+            dataBuffer.AddData((int)LogCommands.CancelAllSubscriptions);
+            Write(dataBuffer.GetData());
+            if (!_commandExecuted.WaitOne(COMMAND_TIMEOUT, true))
+            {
+                throw new TimeoutException("RemoveAllSignals");
+            }
+        }
 
-        #region Log messages handlers
+        #region Log input messages handlers
+        public void OnLogData(int channel, int count, ReadDataBuffer dataBuffer)
+        {
+            var activeSubscription = _subscriptionHandler.GetActiveSubscription(channel);
+            if (activeSubscription is null)
+            {
+                return;
+            }
+
+            List<double> rawLogDataValues = new(count);
+            switch (activeSubscription.Format)
+            {
+                case LogDataValueFormat.Float:
+                    for (int i = 0; i < count; i++)
+                    {
+                        rawLogDataValues.Add(dataBuffer.ReadFloat());
+                    }
+                    break;
+                case LogDataValueFormat.String:
+                case LogDataValueFormat.Undefined:
+                    Log.Write(LogLevel.Error, "TestSignalHandler::OnLogData", "Got format " + activeSubscription.Format.ToString() + " and we don't have a way to handle it..");
+                    break;
+                default:
+                    for (int j = 0; j < count; j++)
+                    {
+                        rawLogDataValues.Add(dataBuffer.ReadInt());
+                    }
+                    break;
+
+            }
+            //List<double> list = new(count);
+            if (activeSubscription.Format == LogDataValueFormat.Float)
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    list.Add(dataBuffer.ReadFloat());
+                }
+            }
+            else if (activeSubscription.Format == LogDataValueFormat.String || activeSubscription.Format == LogDataValueFormat.Undefined)
+            {
+                Log.Write(LogLevel.Error, "TestSignalHandler::OnLogData", "Got format " + _definedSignals[channel].Format.ToString() + " and we don't have a way to handle it..");
+            }
+            else
+            {
+                for (int j = 0; j < count; j++)
+                {
+                    logData.Add(dataBuffer.ReadInt());
+                }
+            }
+
+            ReceiveLogDataObject receiveLogDataObject = _dataLogs[channel];
+            List<double> logDataValues = receiveLogDataObject.LoggedDataValues;
+            //LogSrvSignalDefinition logSrvSignalDefinition = _definedSignals[channel];
+            Trig trig = null;
+            if (_trigs.ContainsKey(channel))
+            {
+                trig = _trigs[channel];
+            }
+
+            double sampleTime = activeSubscription.SampleTime;
+            double minSampleTime = _subscriptionHandler.GetActiveSubscriptionsMinSampleTime();
+            double sampleTimeFactor = sampleTime / minSampleTime;
+            int roundedSampleTimeFactor = (int)Math.Round(sampleTimeFactor, 0);
+            int loggedDataCount = logDataValues.Count;
+            foreach (double rawLogDataValue in rawLogDataValues)
+            {
+                if (AntiAliasFiltering)
+                {
+                    if ((int)Math.Round(SampleTime / sampleTime, 0) > 1)
+                    {
+                        Filter antiAliasFilter = receiveLogDataObject.AntiAliasFilter;
+                        antiAliasFilter.Execute(data);
+                        if (antiAliasFilter.SampleFinished)
+                        {
+                            TrigHandler.AddNewSample(loggedData, antiAliasFilter.Value, trig);
+                        }
+                    }
+                    else
+                    {
+                        if (loggedData.Count == 0)
+                        {
+                            TrigHandler.AddNewSample(loggedData, data, trig);
+                            TrigHandler.AddNewSample(loggedData, data, trig);
+                        }
+                        TrigHandler.AddNewSample(loggedData, data, trig);
+                    }
+                    continue;
+                }
+   
+                if (Math.Abs(roundedSampleTimeFactor - sampleTimeFactor) > 0.1)
+                {
+                    int num3 = 2;
+                    while (Math.Abs(sampleTimeFactor * roundedSampleTimeFactor - Math.Floor(sampleTimeFactor * roundedSampleTimeFactor)) > 0.1)
+                    {
+                        num3++;
+                    }
+
+                    int receivedLogData = receiveLogDataObject.ReceivedLogData + 1 > num3 ? 1 : receiveLogDataObject.ReceivedLogData + 1;
+                    receiveLogDataObject.ReceivedLogData = receivedLogData;
+                    int num4 = logDataValues.Count % (int)(num3 * sampleTimeFactor);
+                    roundedSampleTimeFactor = (int)Math.Floor(receivedLogData * sampleTimeFactor);
+                    roundedSampleTimeFactor -= num4 > 0 ? num4 : 0; 
+                }
+                if (roundedSampleTimeFactor <= 0)
+                {
+                    continue;
+                }
+
+                double logDataValue = logDataValues.Count > 0 ? logDataValues[^1] : rawLogDataValue;
+                for (int k = 0; k < roundedSampleTimeFactor; k++)
+                {
+                    if (ZeroOrderHold)
+                    {
+                        TrigHandler.AddNewSample(logDataValues, rawLogDataValue, trig);
+                    }
+                    else
+                    {
+                        TrigHandler.AddNewSample(logDataValues, logDataValue + (rawLogDataValue - logDataValue) / roundedSampleTimeFactor * (k + 1), trig);
+                    }
+                }
+            }
+            receiveLogDataObject.LoggedSamples += logDataValues.Count - loggedDataCount;
+            rawLogDataValues.Clear();
+            if (MaxLogTime > 0)
+            {
+                int num6 = (int)((double)MaxLogTime / GetSampleTime()) + 1;
+                if (logDataValues.Count > num6)
+                {
+                    int num7 = logDataValues.Count - num6;
+                    foreach (ReceiveLogDataObject value in _dataLogs.Values)
+                    {
+                        if (value.LoggedData != null && value.LoggedData.Count > num7)
+                        {
+                            for (int l = 0; l < num7; l++)
+                            {
+                                value.LoggedData.RemoveAt(0);
+                            }
+                        }
+                    }
+                }
+            }
+            if (this.TestSignalRecived != null && channel == _lastChannel)
+            {
+                this.TestSignalRecived(this, new EventArgs());
+            }
+        }
+        public void OnLogStarted()
+        {
+            _commandExecuted.Set();
+        }
+        public void OnLogStoped()
+        {
+            _commandExecuted.Set();
+        }
         public void OnSubscriptionActivated(ReadDataBuffer dataBuffer)
         {
             var activeDataSubscribtion = ActiveDataSubscription.BuildDataSubscription(dataBuffer);
@@ -147,6 +320,7 @@ namespace MotionMonitor
 
             while (_networkStream != null && (_reading || bytesRead > 0))
             {
+                int tryCounter = 0;
                 try
                 {
                     bytesRead = 0;
@@ -164,9 +338,9 @@ namespace MotionMonitor
                             {
                                 dataBuffer.CurrentIndex = index;
                                 dataBuffer.Skip(1);
-                                switch (array[index])
+                                switch ((LogMessages)array[index])
                                 {
-                                    case 7:
+                                    case LogMessages.LogData:
                                         {
                                             if (index + READ_DATA_BUFFER_LENGTH / 2 - 3 > num2)
                                             {
@@ -180,25 +354,7 @@ namespace MotionMonitor
                                             OnLogData(channel, count, dataBuffer);
                                             break;
                                         }
-                                    case 55:
-                                        if (index + INT32_LENGTH - 3 > num2)
-                                        {
-                                            flag = true;
-                                            break;
-                                        }
-
-                                        OnAllSubscriptionsCanceled(dataBuffer);
-                                        break;
-                                    case 60:
-                                        if (index + LOG_ERROR_MESSAGE_LENGTH - 3 > num2)
-                                        {
-                                            flag = true;
-                                            break;
-                                        }
-
-                                        OnLogError(dataBuffer);
-                                        break;
-                                    case 51:
+                                    case LogMessages.SubscribtionActivated:
                                         if (index + LOG_SUBSCRIBTION_ACTIVATED_MESSAGE_LENGTH - 3 > num2)
                                         {
                                             flag = true;
@@ -207,7 +363,9 @@ namespace MotionMonitor
 
                                         OnSubscriptionActivated(dataBuffer);
                                         break;
-                                    case 54:
+                                    case LogMessages.LoggingStarted:
+                                    case LogMessages.LoggingStopped:
+                                    case LogMessages.SubscribtionCanceled:
                                         if (index + INT32_LENGTH - 3 > num2)
                                         {
                                             flag = true;
@@ -216,7 +374,16 @@ namespace MotionMonitor
 
                                         OnSubscriptionCanceled(dataBuffer);
                                         break;
-                                    case 56:
+                                    case LogMessages.AllSubscribtionsCanceled:
+                                        if (index + INT32_LENGTH - 3 > num2)
+                                        {
+                                            flag = true;
+                                            break;
+                                        }
+
+                                        OnAllSubscriptionsCanceled(dataBuffer);
+                                        break;
+                                    case LogMessages.SubscribtionsEnumerated:
                                         {
                                             if (index + LOG_SUBSCRIBTION_ACTIVATED_MESSAGE_LENGTH * 12 - 3 > num2)
                                             {
@@ -227,6 +394,15 @@ namespace MotionMonitor
                                             OnSubscriptionsEnumerated(dataBuffer);
                                             break;
                                         }
+                                    case LogMessages.Error:
+                                        if (index + LOG_ERROR_MESSAGE_LENGTH - 3 > num2)
+                                        {
+                                            flag = true;
+                                            break;
+                                        }
+
+                                        OnLogError(dataBuffer);
+                                        break;
                                 }
                                 if (flag)
                                 {
@@ -254,11 +430,10 @@ namespace MotionMonitor
                     }
                     else
                     {
-                        _sleepCounter++;
-                        if (_sleepCounter == 1000)
+                        if (++tryCounter >= 1000)
                         {
                             Thread.Sleep(1);
-                            _sleepCounter = 0;
+                            tryCounter = 0;
                         }
                     }
                 }
@@ -270,160 +445,6 @@ namespace MotionMonitor
             }
         }
 
-        protected override void OnLogData(int channel, int count, ReadDataBuffer dataBuffer)
-        {
-            var activeSubscription = _subscriptionHandler.GetActiveSubscription(channel);
-            if (activeSubscription is null)
-            {
-                return;
-            }
-
-            List<double> logData = new(count);
-            switch (activeSubscription.Format)
-            {
-                case LogDataValueFormat.Float:
-                    for (int i = 0; i < count; i++)
-                    {
-                        logData.Add(dataBuffer.ReadFloat());
-                    }
-                    break;
-                case LogDataValueFormat.String:
-                case LogDataValueFormat.Undefined:
-                    Log.Write(LogLevel.Error, "TestSignalHandler::OnLogData", "Got format " + activeSubscription.Format.ToString() + " and we don't have a way to handle it..");
-                    break;
-                default:
-                    for (int j = 0; j < count; j++)
-                    {
-                        logData.Add(dataBuffer.ReadInt());
-                    }
-                    break;
-
-            }
-            //List<double> list = new(count);
-            if (activeSubscription.Format == LogDataValueFormat.Float)
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    list.Add(dataBuffer.ReadFloat());
-                }
-            }
-            else if (activeSubscription.Format == LogDataValueFormat.String || activeSubscription.Format == LogDataValueFormat.Undefined)
-            {
-                Log.Write(LogLevel.Error, "TestSignalHandler::OnLogData", "Got format " + _definedSignals[channel].Format.ToString() + " and we don't have a way to handle it..");
-            }
-            else
-            {
-                for (int j = 0; j < count; j++)
-                {
-                    list.Add(dataBuffer.ReadInt());
-                }
-            }
-
-            ReceiveLogDataObject receiveLogDataObject = _dataLogs[channel];
-            List<double> loggedData = receiveLogDataObject.LoggedData;
-            LogSrvSignalDefinition logSrvSignalDefinition = _definedSignals[channel];
-            Trig trig = null;
-            if (_trigs.ContainsKey(channel))
-            {
-                trig = _trigs[channel];
-            }
-
-            double sampleTime = logSrvSignalDefinition.SampleTime;
-            int count2 = loggedData.Count;
-            foreach (double item in list)
-            {
-                if (AntiAliasFiltering)
-                {
-                    if ((int)Math.Round(SampleTime / sampleTime, 0) > 1)
-                    {
-                        Filter antiAliasFilter = receiveLogDataObject.AntiAliasFilter;
-                        antiAliasFilter.Execute(item);
-                        if (antiAliasFilter.SampleFinished)
-                        {
-                            TrigHandler.AddNewSample(loggedData, antiAliasFilter.Value, trig);
-                        }
-                    }
-                    else
-                    {
-                        if (loggedData.Count == 0)
-                        {
-                            TrigHandler.AddNewSample(loggedData, item, trig);
-                            TrigHandler.AddNewSample(loggedData, item, trig);
-                        }
-                        TrigHandler.AddNewSample(loggedData, item, trig);
-                    }
-                    continue;
-                }
-                double minSampleTime = GetMinSampleTime();
-                double num = sampleTime / minSampleTime;
-                int num2 = (int)Math.Round(num, 0);
-                if (Math.Abs((double)num2 - num) > 0.1)
-                {
-                    int num3 = 2;
-                    while (Math.Abs(num * (double)num2 - Math.Floor(num * (double)num2)) > 0.1)
-                    {
-                        num3++;
-                    }
-                    int receivedLogData = receiveLogDataObject.ReceivedLogData;
-                    receivedLogData++;
-                    if (receivedLogData > num3)
-                    {
-                        receivedLogData = 1;
-                    }
-                    receiveLogDataObject.ReceivedLogData = receivedLogData;
-                    int num4 = loggedData.Count % (int)((double)num3 * num);
-                    num2 = (int)Math.Floor((double)receivedLogData * num);
-                    if (num4 > 0)
-                    {
-                        num2 -= num4;
-                    }
-                }
-                if (num2 <= 0)
-                {
-                    continue;
-                }
-                double num5 = item;
-                if (loggedData.Count > 0)
-                {
-                    num5 = loggedData[loggedData.Count - 1];
-                }
-                for (int k = 0; k < num2; k++)
-                {
-                    if (ZeroOrderHold)
-                    {
-                        TrigHandler.AddNewSample(loggedData, item, trig);
-                    }
-                    else
-                    {
-                        TrigHandler.AddNewSample(loggedData, num5 + (item - num5) / (double)num2 * (double)(k + 1), trig);
-                    }
-                }
-            }
-            receiveLogDataObject.LoggedSamples += loggedData.Count - count2;
-            list.Clear();
-            if (MaxLogTime > 0)
-            {
-                int num6 = (int)((double)MaxLogTime / GetSampleTime()) + 1;
-                if (loggedData.Count > num6)
-                {
-                    int num7 = loggedData.Count - num6;
-                    foreach (ReceiveLogDataObject value in _dataLogs.Values)
-                    {
-                        if (value.LoggedData != null && value.LoggedData.Count > num7)
-                        {
-                            for (int l = 0; l < num7; l++)
-                            {
-                                value.LoggedData.RemoveAt(0);
-                            }
-                        }
-                    }
-                }
-            }
-            if (this.TestSignalRecived != null && channel == _lastChannel)
-            {
-                this.TestSignalRecived(this, new EventArgs());
-            }
-        }
 
 
     }

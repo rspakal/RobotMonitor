@@ -13,6 +13,7 @@ namespace MotionMonitor
         public void RemoveAllActiveSubscriptions();
         public void EnumerateActiveSubscriptions(List<ActiveDataSubscription> activeDataSubscription);
         public ActiveDataSubscription? GetActiveSubscription(int channelNo);
+        public double GetActiveSubscriptionsMinSampleTime();
         public bool IsActiveDataSubscribtionExist();
     }
 }

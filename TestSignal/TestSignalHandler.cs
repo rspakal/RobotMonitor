@@ -230,10 +230,7 @@ namespace TestSignal
         {
             _commandExecuted.Set();
             _subscribing = cmd == LogSrvCommand.StartLog;
-            if (this.SubscribingChanged != null)
-            {
-                this.SubscribingChanged(this, new NotifyEventArgs<bool>(true));
-            }
+            SubscribingChanged?.Invoke(this, new NotifyEventArgs<bool>(true));
         }
 
         private double GetMinSampleTime()
@@ -343,10 +340,10 @@ namespace TestSignal
                 double minSampleTime = GetMinSampleTime();
                 double num = sampleTime / minSampleTime;
                 int num2 = (int)Math.Round(num, 0);
-                if (Math.Abs((double)num2 - num) > 0.1)
+                if (Math.Abs(num2 - num) > 0.1)
                 {
                     int num3 = 2;
-                    while (Math.Abs(num * (double)num2 - Math.Floor(num * (double)num2)) > 0.1)
+                    while (Math.Abs(num * num2 - Math.Floor(num * num2)) > 0.1)
                     {
                         num3++;
                     }

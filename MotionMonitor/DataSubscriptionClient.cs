@@ -16,7 +16,6 @@ namespace MotionMonitor
         private List<RequestDataSubscription> _requestedDataSubscriptions;
         private List<ActiveDataSubscription> _activeDataSubscriptions;
         private int _lastChannelNo;
-        //private ManualResetEvent _commandExecuted;
         private readonly ConnectionClient _connectionHandler;
         private readonly DataStreamHandler _dataStreamHandler;
         public DataSubscriptionClient()
@@ -25,7 +24,6 @@ namespace MotionMonitor
             _dataStreamHandler = new DataStreamHandler(this);
             _requestedDataSubscriptions = RequestDataSubscription.BuildRequestedDataSubscribtions();
             _activeDataSubscriptions = new();
-            //_commandExecuted = new ManualResetEvent(false);
         }
 
         public bool Init()
@@ -68,15 +66,6 @@ namespace MotionMonitor
         }
         public void Disconnect()
         { }
-        //public void AddSubscriber(IDataSubscriber subscriber)
-
-        //{ }
-        //public void StartSubscription()
-        //{ }
-        //public void StopSubscription()
-        //{ }
-
-
         private void Subscribe(DataSubscription dataSubscription)
         {
             if (_activeDataSubscriptions.Count >= MAX_SUBSCRIPTIONS_AMOUNT)
@@ -142,11 +131,17 @@ namespace MotionMonitor
             }
         }
 
-        public ActiveDataSubscription? GetZctiveSubscription(int channelNo)
+        public ActiveDataSubscription? GetActiveSubscription(int channelNo)
         {
             var activeSubscription = _activeDataSubscriptions.FirstOrDefault(s => s.ChannelNo == channelNo);
             return activeSubscription;
         }
+
+        public double GetActiveSubscriptionsMinSampleTime() 
+        {
+            return _activeDataSubscriptions?.Select(v => v.SampleTime).DefaultIfEmpty(-1).Min() ?? -1;
+        }
+
         public bool IsActiveDataSubscribtionExist()
         {
             return true;
