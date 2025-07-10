@@ -1,72 +1,57 @@
-﻿using MotionMonitor.Enums;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Channels;
-using System.Threading.Tasks;
-
-namespace MotionMonitor
+﻿namespace MotionMonitor
 {
-    public class DataSubscriptionClient : IDataSubscriptionsHandler
+    public class DataSubscriptionClient : ISubscriptionManager
     {
         const int COMMAND_TIMEOUT = 500;
         const int MAX_SUBSCRIPTIONS_AMOUNT = 12;
 
         private List<RequestDataSubscription> _requestedDataSubscriptions;
-        private List<ActiveDataSubscription> _activeDataSubscriptions;
+        private List<ActiveDataSubscription> _activeSubscriptions;
         private int _lastChannelNo;
-        private readonly ConnectionClient _connectionHandler;
-        private readonly DataStreamHandler _dataStreamHandler;
-        public DataSubscriptionClient()
+        private ISubscriptionDataStreamManager _subscriptionDataStreamManager;
+
+        public List<ActiveDataSubscription> ActiveSubscriptions => _activeSubscriptions;
+
+        event EventHandler<NotifyEventArgs<bool>> ConnectedChanged;
+        event EventHandler<NotifyEventArgs<bool>> SubscribingChanged;
+
+        public DataSubscriptionClient(ISubscriptionDataStreamManager subscriptiondataStreamManager)
         {
-            _connectionHandler = new ConnectionClient();
-            _dataStreamHandler = new DataStreamHandler(this);
+            _subscriptionDataStreamManager = subscriptiondataStreamManager;
+            _subscriptionDataStreamManager.SubscriptionManager = this;
             _requestedDataSubscriptions = RequestDataSubscription.BuildRequestedDataSubscribtions();
-            _activeDataSubscriptions = new();
+            _activeSubscriptions = new();
         }
 
         public bool Init()
         {
-            bool isSucceed = true;
-            try
+            if (_requestedDataSubscriptions is null)
             {
-                Connect();
-                _requestedDataSubscriptions ??= RequestDataSubscription.BuildRequestedDataSubscribtions();
-                for (int i = 0; i < _requestedDataSubscriptions.Count; i++)
+                _requestedDataSubscriptions = RequestDataSubscription.BuildRequestedDataSubscribtions();
+            }
+            else
+            {
+                _requestedDataSubscriptions.Clear();
+                _requestedDataSubscriptions.AddRange(RequestDataSubscription.BuildRequestedDataSubscribtions());
+            }
+
+            while (CancelAllSubscriptions())
+            {
+                Thread.Sleep(COMMAND_TIMEOUT);
+            }
+
+            foreach (var subscription in _requestedDataSubscriptions)
+            {
+                if (!Subscribe(subscription))
                 {
-                    Subscribe(_requestedDataSubscriptions[i]);
+                    return false;
                 }
             }
-            catch (Exception)
-            {
-                isSucceed =false;
-            }
 
-            return isSucceed;
+            return true;
         }
 
-        bool Connected { get; }
-        bool Subscribing { get; }
-        event EventHandler<NotifyEventArgs<bool>> ConnectedChanged;
-        event EventHandler<NotifyEventArgs<bool>> SubscribingChanged;
-        public void Connect()
-        {
-            try
-            {
-                _connectionHandler.ConnectAsync().Wait();
-                CancelAllSubscriptions();
-            }
-            catch (Exception ex)
-            {
-                //Log.Write(LogLevel.Error, "TestSignalHandler::Connect()", ex);
-                _connectionHandler.DisconnectAsync().Wait();
-                throw;
-            }
-        }
-        public void Disconnect()
-        { }
-        private void Subscribe(DataSubscription dataSubscription)
+        private bool Subscribe(RequestDataSubscription dataSubscription)
         {
             if (_activeDataSubscriptions.Count >= MAX_SUBSCRIPTIONS_AMOUNT)
             {
@@ -74,21 +59,40 @@ namespace MotionMonitor
             }
 
             channel = FindChannel(dataSubscription);
-            if (!IsSignalDefined(dataSubscription))
+            if (!IsSubscriptionActive(dataSubscription))
             {
-                _dataStreamHandler.SendSubscriptionRequest(dataSubscription);
+                try
+                {
+                    _subscriptionManager.SendSubscriptionRequest(dataSubscription);
+                }
+                catch (Exception ex)
+                {
+                    return false;
+                }
             }
+
+            return true;
         }
+
         private void CancelSubscription()
         { }
-        private void CancelAllSubscriptions()
+
+        private bool CancelAllSubscriptions()
         {
-            _dataStreamHandler.SendCancelAllSubscribtionsRequest();
+            try
+            {
+                _subscriptionManager.SendCancelAllSubscribtionsRequest();
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+
+            return true;
         }
 
-
-        #region IDataSubscription methods
-        public void AddActiveSubscription(ActiveDataSubscription dataSubscription)
+        #region ISubscriptionManager methods
+        void ISubscriptionManager.AddActiveSubscription(ActiveDataSubscription dataSubscription)
         {
             lock (_activeDataSubscriptions)
             {
@@ -97,12 +101,12 @@ namespace MotionMonitor
             }
         }
 
-        public void RemoveActiveSubscription(ActiveDataSubscription activeDataSubscription)
+        void ISubscriptionManager.RemoveActiveSubscription(ActiveDataSubscription activeDataSubscription)
         {
             throw new NotImplementedException();
         }
 
-        public void RemoveAllActiveSubscriptions()
+        void ISubscriptionManager.RemoveAllActiveSubscriptions()
         {
             lock (_activeDataSubscriptions)
             {
@@ -116,7 +120,7 @@ namespace MotionMonitor
 
         }
 
-        public void EnumerateActiveSubscriptions(List<ActiveDataSubscription> activeDataSubscriptions)
+        void ISubscriptionManager.EnumerateActiveSubscriptions(List<ActiveDataSubscription> activeDataSubscriptions)
         {
             lock (_activeDataSubscriptions)
             {
@@ -131,13 +135,13 @@ namespace MotionMonitor
             }
         }
 
-        public ActiveDataSubscription? GetActiveSubscription(int channelNo)
+        ActiveDataSubscription? ISubscriptionManager.GetActiveSubscription(int channelNo)
         {
             var activeSubscription = _activeDataSubscriptions.FirstOrDefault(s => s.ChannelNo == channelNo);
             return activeSubscription;
         }
-
-        public double GetActiveSubscriptionsMinSampleTime() 
+        
+        public double GetActiveSubscriptionsMinSampleTime()
         {
             return _activeDataSubscriptions?.Select(v => v.SampleTime).DefaultIfEmpty(-1).Min() ?? -1;
         }
@@ -148,8 +152,7 @@ namespace MotionMonitor
         }
         #endregion
 
-
-        private bool IsSignalDefined(DataSubscription subscription)
+        private bool IsSubscriptionActive(RequestDataSubscription subscription)
         {
             var result = _activeDataSubscriptions.Any(s =>
             s.AxisNo == subscription.AxisNo &&
@@ -161,10 +164,10 @@ namespace MotionMonitor
         }
         private int FindChannel(DataSubscription dataSubscription)
         {
-            var channel = _activeDataSubscriptions.FirstOrDefault(s => 
-            s.SignalNo == dataSubscription.SignalNo && 
-            s.MechUnitName == dataSubscription.MechUnitName && 
-            s.AxisNo == dataSubscription.AxisNo && 
+            var channel = _activeDataSubscriptions.FirstOrDefault(s =>
+            s.SignalNo == dataSubscription.SignalNo &&
+            s.MechUnitName == dataSubscription.MechUnitName &&
+            s.AxisNo == dataSubscription.AxisNo &&
             s.SampleTime == dataSubscription.SampleTime);
 
             int num = MAX_SUBSCRIPTIONS_AMOUNT - 1;
@@ -182,5 +185,16 @@ namespace MotionMonitor
             return num;
         }
 
+    }
+    public interface ISubscriptionsManager
+    {
+        public void AddActiveSubscription(ActiveDataSubscription activeDataSubscription);
+        public void RemoveActiveSubscription(ActiveDataSubscription activeDataSubscription);
+        public void RemoveAllActiveSubscriptions();
+        public void EnumerateActiveSubscriptions(List<ActiveDataSubscription> activeDataSubscription);
+
+        public ActiveDataSubscription? GetActiveSubscription(int channelNo);
+        public double GetActiveSubscriptionsMinSampleTime();
+        public bool IsActiveDataSubscribtionExist();
     }
 }

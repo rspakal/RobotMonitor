@@ -11,6 +11,7 @@ namespace MotionMonitor.Enums
         Idle,
         Connecting,
         Connected,
-        Disconnecting
+        Disconnecting,
+        Failed
     }
 }
