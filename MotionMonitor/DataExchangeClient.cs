@@ -40,6 +40,8 @@ namespace MotionMonitor
             set => _logManager = value;
         }
 
+        private bool _reading;
+
         private ManualResetEvent _commandExecuted = new ManualResetEvent(false);
 
 
