@@ -11,6 +11,7 @@ namespace MotionMonitor
         private readonly LogDataValueFormat _format;
         private readonly int _blockSize;
         private bool _enabled;
+
         public LogDataValueFormat Format => _format;
         public int BlockSize => _blockSize;
         public bool Enabled => _enabled;
