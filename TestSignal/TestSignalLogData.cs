@@ -70,8 +70,7 @@ namespace TestSignal
 						{
 							sampleTime = axcSampleTime;
 						}
-						double num2 = sampleTime / axcSampleTime;
-						sampleTime = num2 * (axcSampleTime + 5E-07);
+						sampleTime = (sampleTime / axcSampleTime) * (axcSampleTime + 5E-07);
 						sampleTime *= 1000.0;
 						testSignalLogData.testSignalHandler.AntiAliasFiltering = antiAliasFiltering;
 						testSignalLogData.testSignalHandler.SampleTime = sampleTime;

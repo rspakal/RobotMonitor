@@ -311,7 +311,7 @@ namespace TestSignal
                 trig = _trigs[channel];
             }
 
-            double sampleTime = logSrvSignalDefinition.SampleTime;
+            double currentChannelSampleTime = logSrvSignalDefinition.SampleTime;
             int count2 = loggedData.Count;
             foreach (double item in list)
             {
@@ -338,7 +338,7 @@ namespace TestSignal
                     continue;
                 }
                 double minSampleTime = GetMinSampleTime();
-                double num = sampleTime / minSampleTime;
+                double num = currentChannelSampleTime / minSampleTime;
                 int num2 = (int)Math.Round(num, 0);
                 if (Math.Abs(num2 - num) > 0.1)
                 {

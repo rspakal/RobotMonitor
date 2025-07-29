@@ -5,42 +5,44 @@
         const int COMMAND_TIMEOUT = 500;
         const int MAX_SUBSCRIPTIONS_AMOUNT = 12;
 
-        private List<RequestDataSubscription> _requestedDataSubscriptions;
-        private List<ActiveDataSubscription> _activeSubscriptions;
-        private int _lastChannelNo;
+        private Dictionary<int, RequestDataSubscription> _requestedSubscriptions;
+        private Dictionary<int, ActiveDataSubscription> _activeSubscriptions;
         private ISubscriptionDataStreamManager _subscriptionDataStreamManager;
+        private int _lastChannelNo;
 
-        public List<ActiveDataSubscription> ActiveSubscriptions => _activeSubscriptions;
-
-        event EventHandler<NotifyEventArgs<bool>> ConnectedChanged;
-        event EventHandler<NotifyEventArgs<bool>> SubscribingChanged;
+        public Dictionary<int, ActiveDataSubscription> ActiveSubscriptions => _activeSubscriptions;
+        //event EventHandler<NotifyEventArgs<bool>> ConnectedChanged;
+        //event EventHandler<NotifyEventArgs<bool>> SubscribingChanged;
 
         public DataSubscriptionClient(ISubscriptionDataStreamManager subscriptiondataStreamManager)
         {
             _subscriptionDataStreamManager = subscriptiondataStreamManager;
             _subscriptionDataStreamManager.SubscriptionManager = this;
-            _requestedDataSubscriptions = RequestDataSubscription.BuildRequestedDataSubscribtions();
-            _activeSubscriptions = new();
+            _requestedSubscriptions = RequestDataSubscription.BuildRequestedDataSubscribtions();
+            _activeSubscriptions = [];
         }
 
         public bool Init()
         {
-            if (_requestedDataSubscriptions is null)
+            if (_requestedSubscriptions is null)
             {
-                _requestedDataSubscriptions = RequestDataSubscription.BuildRequestedDataSubscribtions();
+                _requestedSubscriptions = RequestDataSubscription.BuildRequestedDataSubscribtions();
             }
             else
             {
-                _requestedDataSubscriptions.Clear();
-                _requestedDataSubscriptions.AddRange(RequestDataSubscription.BuildRequestedDataSubscribtions());
+                _requestedSubscriptions.Clear();
+                foreach (var s in RequestDataSubscription.BuildRequestedDataSubscribtions())
+                {
+                    _requestedSubscriptions.Add(s.Key, s.Value);
+                }
             }
 
-            while (CancelAllSubscriptions())
+            if (!CancelAllSubscriptions())
             {
-                Thread.Sleep(COMMAND_TIMEOUT);
+                return false;
             }
 
-            foreach (var subscription in _requestedDataSubscriptions)
+            foreach (var subscription in _requestedSubscriptions)
             {
                 if (!Subscribe(subscription))
                 {
@@ -51,19 +53,19 @@
             return true;
         }
 
-        private bool Subscribe(RequestDataSubscription dataSubscription)
+        private bool Subscribe(KeyValuePair<int, RequestDataSubscription> dataSubscription)
         {
-            if (_activeDataSubscriptions.Count >= MAX_SUBSCRIPTIONS_AMOUNT)
+            if (_activeSubscriptions.Count >= MAX_SUBSCRIPTIONS_AMOUNT)
             {
                 throw new Exception(string.Format($"Cannot add more channels, max is {MAX_SUBSCRIPTIONS_AMOUNT}."));
             }
 
-            channel = FindChannel(dataSubscription);
-            if (!IsSubscriptionActive(dataSubscription))
+            var channel = dataSubscription.Key;
+            if (!IsSubscriptionActive(dataSubscription.Value))
             {
                 try
                 {
-                    _subscriptionManager.SendSubscriptionRequest(dataSubscription);
+                    _subscriptionDataStreamManager.SendSubscriptionRequest(dataSubscription);
                 }
                 catch (Exception ex)
                 {
@@ -81,55 +83,54 @@
         {
             try
             {
-                _subscriptionManager.SendCancelAllSubscribtionsRequest();
+                _subscriptionDataStreamManager.SendCancelAllSubscribtionsRequest();
+                return true;
             }
             catch (Exception ex)
             {
                 return false;
             }
-
-            return true;
         }
 
         #region ISubscriptionManager methods
-        void ISubscriptionManager.AddActiveSubscription(ActiveDataSubscription dataSubscription)
+        void ISubscriptionManager.AddActiveSubscription(int channelNo, ActiveDataSubscription dataSubscription)
         {
-            lock (_activeDataSubscriptions)
+            lock (_activeSubscriptions)
             {
-                _activeDataSubscriptions.Add(dataSubscription);
-                _lastChannelNo = dataSubscription.ChannelNo;
+                _activeSubscriptions.Add(channelNo, dataSubscription);
+                _lastChannelNo = channelNo;
             }
         }
 
-        void ISubscriptionManager.RemoveActiveSubscription(ActiveDataSubscription activeDataSubscription)
+        void ISubscriptionManager.RemoveActiveSubscription(int channel, ActiveDataSubscription activeDataSubscription)
         {
             throw new NotImplementedException();
         }
 
         void ISubscriptionManager.RemoveAllActiveSubscriptions()
         {
-            lock (_activeDataSubscriptions)
+            lock (_activeSubscriptions)
             {
-                _activeDataSubscriptions.Clear();
+                _activeSubscriptions.Clear();
             }
 
-            lock (_trigs)
-            {
-                _trigs.Clear();
-            }
+            //lock (_trigs)
+            //{
+            //    _trigs.Clear();
+            //}
 
         }
 
-        void ISubscriptionManager.EnumerateActiveSubscriptions(List<ActiveDataSubscription> activeDataSubscriptions)
+        void ISubscriptionManager.EnumerateActiveSubscriptions(Dictionary<int, ActiveDataSubscription> activeDataSubscriptions)
         {
-            lock (_activeDataSubscriptions)
+            lock (_activeSubscriptions)
             {
-                _activeDataSubscriptions.Clear();
+                _activeSubscriptions.Clear();
                 foreach (var subscription in activeDataSubscriptions)
                 {
-                    if (subscription.Enabled)
+                    if (subscription.Value.Enabled)
                     {
-                        _activeDataSubscriptions.Add(subscription);
+                        _activeSubscriptions.Add(subscription.Key, subscription.Value);
                     }
                 }
             }
@@ -137,13 +138,13 @@
 
         ActiveDataSubscription? ISubscriptionManager.GetActiveSubscription(int channelNo)
         {
-            var activeSubscription = _activeDataSubscriptions.FirstOrDefault(s => s.ChannelNo == channelNo);
+            var activeSubscription = _activeSubscriptions[channelNo];
             return activeSubscription;
         }
         
         public double GetActiveSubscriptionsMinSampleTime()
         {
-            return _activeDataSubscriptions?.Select(v => v.SampleTime).DefaultIfEmpty(-1).Min() ?? -1;
+            return _activeSubscriptions?.Select(v => v.Value.SampleTime).DefaultIfEmpty(-1).Min() ?? -1;
         }
 
         public bool IsActiveDataSubscribtionExist()
@@ -154,29 +155,29 @@
 
         private bool IsSubscriptionActive(RequestDataSubscription subscription)
         {
-            var result = _activeDataSubscriptions.Any(s =>
-            s.AxisNo == subscription.AxisNo &&
-            s.MechUnitName == subscription.MechUnitName &&
-            s.SignalNo == subscription.SignalNo &&
-            s.SampleTime == subscription.SampleTime);
+            var result = _activeSubscriptions.Any(s =>
+            s.Value.AxisNo == subscription.AxisNo &&
+            s.Value.MechUnitName == subscription.MechUnitName &&
+            s.Value.SignalNo == subscription.SignalNo &&
+            s.Value.SampleTime == subscription.SampleTime);
 
             return result;
         }
         private int FindChannel(DataSubscription dataSubscription)
         {
-            var channel = _activeDataSubscriptions.FirstOrDefault(s =>
-            s.SignalNo == dataSubscription.SignalNo &&
-            s.MechUnitName == dataSubscription.MechUnitName &&
-            s.AxisNo == dataSubscription.AxisNo &&
-            s.SampleTime == dataSubscription.SampleTime);
+            var channel = _activeSubscriptions.FirstOrDefault(s =>
+            s.Value.SignalNo == dataSubscription.SignalNo &&
+            s.Value.MechUnitName == dataSubscription.MechUnitName &&
+            s.Value.AxisNo == dataSubscription.AxisNo &&
+            s.Value.SampleTime == dataSubscription.SampleTime);
 
             int num = MAX_SUBSCRIPTIONS_AMOUNT - 1;
-            foreach (var activeDataSubscription in _activeDataSubscriptions)
+            foreach (var activeDataSubscription in _activeSubscriptions)
             {
-                if (activeDataSubscription.SignalNo == dataSubscription.SignalNo &&
-                    activeDataSubscription.MechUnitName == dataSubscription.MechUnitName &&
-                    activeDataSubscription.AxisNo == dataSubscription.AxisNo &&
-                    activeDataSubscription.SampleTime == dataSubscription.SampleTime)
+                if (activeDataSubscription.Value.SignalNo == dataSubscription.SignalNo &&
+                    activeDataSubscription.Value.MechUnitName == dataSubscription.MechUnitName &&
+                    activeDataSubscription.Value.AxisNo == dataSubscription.AxisNo &&
+                    activeDataSubscription.Value.SampleTime == dataSubscription.SampleTime)
                 {
                     return num;
                 }
@@ -186,12 +187,12 @@
         }
 
     }
-    public interface ISubscriptionsManager
+    public interface ISubscriptionManager
     {
-        public void AddActiveSubscription(ActiveDataSubscription activeDataSubscription);
-        public void RemoveActiveSubscription(ActiveDataSubscription activeDataSubscription);
+        public void AddActiveSubscription(int channelNo, ActiveDataSubscription activeDataSubscription);
+        public void RemoveActiveSubscription(int channelNo, ActiveDataSubscription activeDataSubscription);
         public void RemoveAllActiveSubscriptions();
-        public void EnumerateActiveSubscriptions(List<ActiveDataSubscription> activeDataSubscription);
+        public void EnumerateActiveSubscriptions(Dictionary<int, ActiveDataSubscription> activeDataSubscription);
 
         public ActiveDataSubscription? GetActiveSubscription(int channelNo);
         public double GetActiveSubscriptionsMinSampleTime();

@@ -15,6 +15,7 @@ namespace TestSignalLogger
             {
                 l.Add(value);
             }
+
             if (trig != null && trig.Type != TrigType.No && trig.Activated(value) && this.TrigActivated != null)
             {
                 TrigEventArgs e = new TrigEventArgs

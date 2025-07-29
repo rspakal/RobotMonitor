@@ -16,7 +16,6 @@ namespace MotionMonitor
             get => _currentIndex;
             set => _currentIndex = value;
         }
-
         public byte[] RemainingBuffer
         {
             get
@@ -26,18 +25,15 @@ namespace MotionMonitor
                 return array;
             }
         }
-
         public ReadDataBuffer(byte[] data, int start = 0)
         {
             _data = data;
             _currentIndex = start;
         }
-
         public void Skip(int count)
         {
             _currentIndex += count;
         }
-
         public int ReadInt()
         {
             Array.Reverse(_data, _currentIndex, INT32_LENGHT);
@@ -45,7 +41,6 @@ namespace MotionMonitor
             _currentIndex += INT32_LENGHT;
             return result;
         }
-
         public float ReadFloat()
         {
             Array.Reverse(_data, _currentIndex, INT32_LENGHT);
@@ -53,7 +48,6 @@ namespace MotionMonitor
             _currentIndex += INT32_LENGHT;
             return result;
         }
-
         public string ReadString(int size)
         {
             int num = Math.Min(_data.Length - _currentIndex, size);

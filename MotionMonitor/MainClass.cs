@@ -2,17 +2,14 @@
 {
     internal class MainClass
     {
-        private readonly byte[] _ipAddressBytes = { 192, 168, 125, 1 };
-        private const int PORT = 4011;
-
         private ConnectionClient? _connectionClient;
         private DataExchangeClient? _dataExchangeClient;
         private DataSubscriptionClient? _subscriptionClient;
-        private LogDataClient? _dataLogClient;
+        private DataLogClient? _dataLogClient;
 
-        private async Task<bool> Iniit()
+        private async Task<bool> Init()
         {
-            _connectionClient ??= new ConnectionClient(_ipAddressBytes, PORT);
+            _connectionClient ??= new ConnectionClient();
             var socket = await _connectionClient.InitAsync();
             if (socket is null)
             {
@@ -31,8 +28,8 @@
                 return false;
             }
 
-            _dataLogClient ??= new LogDataClient();
-            if (_dataLogClient.Init())
+            _dataLogClient ??= new DataLogClient(_dataExchangeClient, _subscriptionClient.ActiveSubscriptions);
+            if (!_dataLogClient.Init())
             {
                 return false;
             }

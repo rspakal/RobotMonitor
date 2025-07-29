@@ -2,24 +2,26 @@
 {
     public abstract class DataSubscription
     {
+        public const double SAMPLE_TIME = 0.000504;
+
         protected const int VELOCITY_SIGNAL = 1717;
         protected const int TORQUE_SIGNAL = 4947;
         protected const string ROBOT_NAME = "ROB_1";
         protected const float AXC_SAMPLE_TIME = 0.000504f;
-        protected const int MECH_UNIT_NAME_LENGTH = 40;
+        public const int MECH_UNIT_NAME_LENGTH = 40;
 
-        protected int _channelNo;
+        //protected int _channelNo;
         protected int _signalNo;
         protected string _mechUnitName;
         protected int _axisNo;
         protected float _sampleTime;
 
 
-        public int ChannelNo
-        {
-            get => _channelNo;
-            set => _channelNo = value;
-        }
+        //public int ChannelNo
+        //{
+        //    get => _channelNo;
+        //    set => _channelNo = value;
+        //}
         public int SignalNo
         {
             get => _signalNo;
@@ -41,9 +43,8 @@
             set => _sampleTime = value;
         }
 
-        public DataSubscription(int channelNo, int signalNo, string mechUnitName, int axisNo, float sampleTime)
+        public DataSubscription(int signalNo, string mechUnitName, int axisNo, float sampleTime)
         {
-            _channelNo = channelNo;
             _signalNo = signalNo;
             _mechUnitName = mechUnitName;
             _axisNo = axisNo;

@@ -4,18 +4,17 @@
     {
 
         public RequestDataSubscription(int channelNo, int signalNo, string mechUnitName, int axisNo, float sampleTime) :
-            base(channelNo, signalNo, mechUnitName, axisNo, sampleTime)
+            base(signalNo, mechUnitName, axisNo, sampleTime)
         {
         }
 
-        public static List<RequestDataSubscription> BuildRequestedDataSubscribtions()
+        public static Dictionary<int, RequestDataSubscription> BuildRequestedDataSubscribtions()
         {
-            List<RequestDataSubscription> subscriptions = new();
+            Dictionary<int, RequestDataSubscription> subscriptions = [];
             int signalNo;
-            int axisNo = 1;
+            int axisNo;
             for (int i = 0; i < 12; i++)
             {
-                signalNo = i <= 6 ? VELOCITY_SIGNAL : TORQUE_SIGNAL;
                 if (i < 6)
                 {
                     axisNo = i + 1;
@@ -27,7 +26,7 @@
                     signalNo = TORQUE_SIGNAL;
                 }
 
-                subscriptions.Add(new RequestDataSubscription(i, signalNo, ROBOT_NAME, axisNo, AXC_SAMPLE_TIME));
+                subscriptions.Add(i, new RequestDataSubscription(i, signalNo, ROBOT_NAME, axisNo, AXC_SAMPLE_TIME));
             }
             return subscriptions;
         }
